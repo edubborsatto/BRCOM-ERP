@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRCom ERP - Gestão de Alta Performance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Ajuste do calendário */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        .calendar-day-cell {
+            min-height: 85px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+    <!-- TELA DE LOGIN -->
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen px-4">
+        <div class="bg-white p-8 rounded-lg shadow-xl border border-gray-200 w-full max-w-md">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-boxes-stacked text-5xl text-emerald-500 mb-2"></i>
+                <h1 class="text-2xl font-bold text-gray-800">BRCom ERP</h1>
+                <p class="text-sm text-gray-500">Credenciais administrativas de acesso</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Usuário</label>
+                    <input type="text" id="login_user" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Senha</label>
+                    <input type="password" id="login_pass" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">
+                    Entrar no Painel
+                </button>
+            </form>
+            <div class="mt-4 text-xs text-center text-gray-400">
+                Padrão: <strong>admin</strong> / <strong>admin123</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAINEL PRINCIPAL (LAYOUT LATERAL ESQUERDO) -->
+    <div id="mainDashboard" class="hidden min-h-screen flex">
+        
+        <!-- SIDEBAR ESQUERDO -->
+        <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col justify-between shadow-lg shrink-0">
+            <div>
+                <div class="p-6 border-b border-slate-700 flex items-center space-x-3">
+                    <i class="fa-solid fa-boxes-stacked text-3xl text-emerald-400"></i>
+                    <span class="text-lg font-bold tracking-wider text-emerald-400">BRCom <span class="text-white font-light">ERP</span></span>
+                </div>
+                
+                <!-- Menu de Navegação -->
+                <nav class="mt-6 px-4 space-y-2">
+                    <button onclick="switchTab('dashboardTab')" id="btn-dashboardTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg bg-emerald-600 text-white font-bold transition">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                        <span>Painel Geral</span>
+                    </button>
+                    <button onclick="switchTab('produtosTab')" id="btn-produtosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition">
+                        <i class="fa-solid fa-box text-lg"></i>
+                        <span>Estoque de Produtos</span>
+                    </button>
+                    <button onclick="switchTab('historicoTab')" id="btn-historicoTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition">
+                        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                        <span>Registro de Estoque</span>
+                    </button>
+                    <button onclick="switchTab('pedidosTab')" id="btn-pedidosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition">
+                        <i class="fa-solid fa-calendar-check text-lg"></i>
+                        <span>Pedidos Futuros</span>
+                    </button>
+                    <button onclick="switchTab('agendaTab')" id="btn-agendaTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition">
+                        <i class="fa-solid fa-calendar-days text-lg"></i>
+                        <span>Agenda</span>
+                    </button>
+                    <button onclick="switchTab('clientesTab')" id="btn-clientesTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition">
+                        <i class="fa-solid fa-user-group text-lg"></i>
+                        <span>Clientes</span>
+                    </button>
+                    <button onclick="switchTab('usuariosTab')" id="btn-usuariosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition hidden">
+                        <i class="fa-solid fa-users-gear text-lg"></i>
+                        <span>Controle de Usuários</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Rodapé Menu -->
+            <div class="p-4 border-t border-slate-700 bg-slate-900 flex flex-col space-y-2">
+                <span id="userNameDisplay" class="text-xs font-semibold text-emerald-400"></span>
+                <button onclick="logout()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold transition">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Sair do Sistema
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL (DIREITO) -->
+        <main class="flex-grow p-8 overflow-y-auto" style="max-height: 100vh;">
+            
+            <!-- TAB 0: PAINEL GERAL (TELA INICIAL) -->
+            <div id="dashboardTab" class="tab-content space-y-8">
+                <!-- Banner Inicial -->
+                <div class="bg-gradient-to-r from-slate-800 to-slate-950 p-6 rounded-lg shadow-md text-white">
+                    <h1 class="text-2xl font-bold">Painel de Monitoramento</h1>
+                    <p class="text-sm text-slate-300">Resumo crítico de estoque e cronograma mensal de tarefas.</p>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- Estoques Críticos (Lado Esquerdo) -->
+                    <div class="bg-white p-6 rounded-lg shadow border xl:col-span-1 h-fit">
+                        <h2 class="text-lg font-bold text-red-600 mb-4 flex items-center">
+                            <i class="fa-solid fa-triangle-exclamation mr-2 animate-bounce"></i>
+                            Estoque Crítico (Abaixo do Mínimo)
+                        </h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase border-b">
+                                        <th class="p-2.5">Produto</th>
+                                        <th class="p-2.5 text-center">Atual</th>
+                                        <th class="p-2.5 text-center">Mínimo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="criticalStockTableBody" class="text-gray-700 text-sm">
+                                    <!-- Dinâmico -->
+                                </tbody>
+                            </table>
+                            <div id="noCriticalStock" class="hidden text-center py-6 text-emerald-600 font-semibold">
+                                <i class="fa-solid fa-circle-check mr-1"></i> Todos os itens com estoque seguro!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendário Mensal Completo (Direita) -->
+                    <div class="bg-white p-6 rounded-lg shadow border xl:col-span-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                                <i class="fa-solid fa-calendar-days text-emerald-500 mr-2"></i>
+                                Cronograma Mensal de Compromissos
+                            </h2>
+                            <span id="calendarMonthLabel" class="font-bold text-lg text-emerald-600 uppercase tracking-wide">Julho 2026</span>
+                        </div>
+                        
+                        <!-- Dias da semana -->
+                        <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs uppercase text-gray-500 py-2 border-b">
+                            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                        </div>
+
+                        <!-- Quadradinhos do calendário -->
+                        <div id="calendarGrid" class="calendar-grid mt-2 bg-gray-200">
+                            <!-- Injetado dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: ESTOQUE DE PRODUTOS -->
+            <div id="produtosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Cadastro/Edição -->
+                <div class="bg-white p-6 rounded-lg shadow border h-fit">
+                    <h2 id="productFormTitle" class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-circle-plus text-emerald-500 mr-2"></i>Cadastrar Produto</h2>
+                    <form id="productForm" class="space-y-4">
+                        <input type="hidden" id="edit_product_id">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">NOME DO PRODUTO</label>
+                            <input type="text" id="prod_nome" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">UNID. MEDIDA</label>
+                                <select id="prod_unidade" class="w-full px-3 py-2 border rounded-md bg-white">
+                                    <option value="unidade">Unidade</option>
+                                    <option value="metro">Metro</option>
+                                    <option value="rolo">Rolo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">ESTOQUE MÍNIMO</label>
+                                <input type="number" id="prod_minimo" required value="5" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">QUANTIDADE ATUAL</label>
+                                <input type="number" id="prod_atual" required value="10" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            <div class="cost-field">
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">PREÇO CUSTO (R$)</label>
+                                <input type="number" step="0.01" id="prod_custo" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">PREÇO VENDA (R$)</label>
+                            <input type="number" step="0.01" id="prod_venda" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" id="btnSaveProduct" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition font-bold">Salvar Produto</button>
+                            <button type="button" onclick="resetProductForm()" id="btnCancelEdit" class="hidden px-4 py-2.5 bg-gray-400 text-white font-bold rounded-md">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Tabela -->
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-list-check text-emerald-500 mr-2"></i>Controle de Estoque</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">ID</th>
+                                    <th class="p-3">Nome</th>
+                                    <th class="p-3">Estoque</th>
+                                    <th class="p-3 cost-field">Custo</th>
+                                    <th class="p-3">Venda</th>
+                                    <th class="p-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: HISTÓRICO DE ESTOQUE -->
+            <div id="historicoTab" class="tab-content hidden">
+                <div class="bg-white p-6 rounded-lg shadow border w-full">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-clock-rotate-left text-emerald-500 mr-2"></i>Movimentações Registradas</h2>
+                        <button onclick="clearHistory()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded shadow transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i> Limpar Todo Histórico
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">Data e Horário</th>
+                                    <th class="p-3">Produto</th>
+                                    <th class="p-3">Operação</th>
+                                    <th class="p-3">Qtd. Movimentada</th>
+                                    <th class="p-3">Saldo Após</th>
+                                    <th class="p-3">Usuário Responsável</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: PEDIDOS FUTUROS -->
+            <div id="pedidosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Cadastro/Edição -->
+                <div class="bg-white p-6 rounded-lg shadow border h-fit">
+                    <h2 id="orderFormTitle" class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i>Lançar Novo Pedido</h2>
+                    <form id="orderForm" class="space-y-4">
+                        <input type="hidden" id="edit_order_id">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">CLIENTE</label>
+                            <input type="text" id="ord_cliente" required class="w-full px-3 py-2 border rounded-md" placeholder="Nome do cliente">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">PRODUTO</label>
+                            <input type="text" id="ord_produto" required class="w-full px-3 py-2 border rounded-md" placeholder="Ex: Cinta de Amarração 5T">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">QUANTIDADE</label>
+                                <input type="number" id="ord_qtd" required value="1" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">DATA DE ENTREGA</label>
+                                <input type="datetime-local" id="ord_data" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" id="btnSaveOrder" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">Salvar Pedido</button>
+                            <button type="button" onclick="resetOrderForm()" id="btnCancelOrderEdit" class="hidden px-4 py-2.5 bg-gray-400 text-white font-bold rounded-md">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Tabela -->
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-calendar-check text-emerald-500 mr-2"></i>Pedidos Agendados / Futuros</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">Data de Entrega</th>
+                                    <th class="p-3">Cliente</th>
+                                    <th class="p-3">Produto</th>
+                                    <th class="p-3">Qtd</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: AGENDA -->
+            <div id="agendaTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Cadastro/Edição -->
+                <div class="bg-white p-6 rounded-lg shadow border h-fit">
+                    <h2 id="agendaFormTitle" class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-calendar-plus text-emerald-500 mr-2"></i>Novo Compromisso</h2>
+                    <form id="agendaForm" class="space-y-4">
+                        <input type="hidden" id="edit_agenda_id">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">TÍTULO / COMPROMISSO</label>
+                            <input type="text" id="ag_titulo" required class="w-full px-3 py-2 border rounded-md" placeholder="Reunião de Vendas, Visita...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">DESCRIÇÃO (OPCIONAL)</label>
+                            <textarea id="ag_desc" class="w-full px-3 py-2 border rounded-md outline-none" rows="2"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">DATA E HORA</label>
+                                <input type="datetime-local" id="ag_data" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">LOCAL</label>
+                                <input type="text" id="ag_local" class="w-full px-3 py-2 border rounded-md" placeholder="Escritório, Zoom...">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" id="btnSaveAgenda" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">Salvar Compromisso</button>
+                            <button type="button" onclick="resetAgendaForm()" id="btnCancelAgendaEdit" class="hidden px-4 py-2.5 bg-gray-400 text-white font-bold rounded-md">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Tabela -->
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-list-ul text-emerald-500 mr-2"></i>Seus Compromissos Agendados</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">Data / Hora</th>
+                                    <th class="p-3">Compromisso</th>
+                                    <th class="p-3">Local</th>
+                                    <th class="p-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agendaTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: CLIENTES -->
+            <div id="clientesTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Cadastro/Edição -->
+                <div class="bg-white p-6 rounded-lg shadow border h-fit">
+                    <h2 id="clientFormTitle" class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-user-plus text-emerald-500 mr-2"></i>Cadastrar Cliente</h2>
+                    <form id="clientForm" class="space-y-4">
+                        <input type="hidden" id="edit_client_id">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">NOME COMPLETO</label>
+                            <input type="text" id="cli_nome" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">CPF / CNPJ</label>
+                            <input type="text" id="cli_doc" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">TELEFONE</label>
+                                <input type="text" id="cli_tel" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">EMAIL</label>
+                                <input type="email" id="cli_email" class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" id="btnSaveClient" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">Salvar Cliente</button>
+                            <button type="button" onclick="resetClientForm()" id="btnCancelClientEdit" class="hidden px-4 py-2.5 bg-gray-400 text-white font-bold rounded-md">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Tabela -->
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-address-book text-emerald-500 mr-2"></i>Carteira de Clientes</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">Nome</th>
+                                    <th class="p-3">Documento</th>
+                                    <th class="p-3">Telefone</th>
+                                    <th class="p-3">Email</th>
+                                    <th class="p-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: CONTROLE DE USUÁRIOS -->
+            <div id="usuariosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Form Cadastro/Edição -->
+                <div class="bg-white p-6 rounded-lg shadow border h-fit">
+                    <h2 id="userFormTitle" class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-user-gear text-emerald-500 mr-2"></i>Adicionar Usuário</h2>
+                    <form id="userForm" class="space-y-4">
+                        <input type="hidden" id="edit_user_id">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">NOME</label>
+                            <input type="text" id="u_nome" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">LOGIN</label>
+                                <input type="text" id="u_login" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 mb-1">SENHA</label>
+                                <input type="text" id="u_senha" required class="w-full px-3 py-2 border rounded-md">
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border space-y-2">
+                            <span class="block text-xs font-bold text-gray-600 uppercase mb-1">Permissões:</span>
+                            <label class="flex items-center space-x-2 text-xs">
+                                <input type="checkbox" id="perm_usuarios" class="rounded text-emerald-500">
+                                <span>Gerenciar Usuários (Admin)</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-xs">
+                                <input type="checkbox" id="perm_custos" class="rounded text-emerald-500">
+                                <span>Ver Preços de Custo</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-xs">
+                                <input type="checkbox" id="perm_estoque" class="rounded text-emerald-500">
+                                <span>Movimentar Estoque</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-xs">
+                                <input type="checkbox" id="perm_clientes" class="rounded text-emerald-500">
+                                <span>Gerenciar Clientes</span>
+                            </label>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" id="btnSaveUser" class="flex-grow py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">Salvar Usuário</button>
+                            <button type="button" onclick="resetUserForm()" id="btnCancelUserEdit" class="hidden px-4 py-2.5 bg-gray-400 text-white font-bold rounded-md">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Tabela -->
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-users text-emerald-500 mr-2"></i>Usuários Cadastrados</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-xs uppercase font-bold border-b">
+                                    <th class="p-3">Nome</th>
+                                    <th class="p-3">Login</th>
+                                    <th class="p-3">Senha</th>
+                                    <th class="p-3">Permissões</th>
+                                    <th class="p-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody" class="text-gray-700 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- SCRIPT DE INTELIGÊNCIA JAVASCRIPT -->
+    <script>
+        let USUARIO_LOGADO = null;
+        let LISTA_COMPROMISSOS = [];
+
+        // Verifica Sessão de 1 Dia (Até Meia Noite) ao abrir a página
+        document.addEventListener("DOMContentLoaded", () => {
+            const sessionData = localStorage.getItem("brcom_session_user");
+            const sessionDateStr = localStorage.getItem("brcom_session_date");
+            const todayStr = new Date().toDateString(); // Ex: "Tue Jul 14 2026"
+
+            if (sessionData && sessionDateStr === todayStr) {
+                // Logado hoje. Restaura sessão.
+                USUARIO_LOGADO = JSON.parse(sessionData);
+                entrarNoPainel();
+            } else {
+                // Sessão antiga ou inexistente. Limpa.
+                localStorage.removeItem("brcom_session_user");
+                localStorage.removeItem("brcom_session_date");
+                logout();
+            }
+        });
+
+        // Login
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                usuario_login: document.getElementById("login_user").value,
+                senha: document.getElementById("login_pass").value
+            };
+
+            try {
+                const response = await fetch("/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    USUARIO_LOGADO = data.usuario;
+                    
+                    // Salva a persistência até a meia-noite (data de hoje)
+                    localStorage.setItem("brcom_session_user", JSON.stringify(USUARIO_LOGADO));
+                    localStorage.setItem("brcom_session_date", new Date().toDateString());
+                    
+                    entrarNoPainel();
+                } else {
+                    alert("Dados incorretos.");
+                }
+            } catch (err) {
+                alert("Erro de conexão.");
+            }
+        });
+
+        function entrarNoPainel() {
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("mainDashboard").classList.remove("hidden");
+            document.getElementById("userNameDisplay").innerHTML = `<i class="fa-solid fa-circle-user mr-1 text-emerald-400"></i> ${USUARIO_LOGADO.nome}`;
+
+            applyPermissions();
+            loadAllData();
+        }
+
+        function logout() {
+            USUARIO_LOGADO = null;
+            localStorage.removeItem("brcom_session_user");
+            localStorage.removeItem("brcom_session_date");
+            document.getElementById("loginScreen").classList.remove("hidden");
+            document.getElementById("mainDashboard").classList.add("hidden");
+            document.getElementById("loginForm").reset();
+        }
+
+        function applyPermissions() {
+            if (USUARIO_LOGADO.pode_gerenciar_usuarios) {
+                document.getElementById("btn-usuariosTab").classList.remove("hidden");
+            } else {
+                document.getElementById("btn-usuariosTab").classList.add("hidden");
+            }
+
+            const costFields = document.querySelectorAll(".cost-field");
+            costFields.forEach(el => {
+                if (USUARIO_LOGADO.pode_alterar_custos) {
+                    el.classList.remove("hidden");
+                } else {
+                    el.classList.add("hidden");
+                }
+            });
+
+            const inputElements = ["prod_nome", "prod_unidade", "prod_minimo", "prod_atual", "prod_custo", "prod_venda", "btnSaveProduct"];
+            inputElements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !USUARIO_LOGADO.pode_movimentar_estoque;
+            });
+
+            const clientInputs = ["cli_nome", "cli_doc", "cli_tel", "cli_email", "btnSaveClient"];
+            clientInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !USUARIO_LOGADO.pode_gerenciar_clientes;
+            });
+        }
+
+        function loadAllData() {
+            loadProducts();
+            loadHistory();
+            loadOrders();
+            loadClients();
+            loadAgendaAndCalendar();
+            if (USUARIO_LOGADO.pode_gerenciar_usuarios) {
+                loadUsers();
+            }
+        }
+
+        // Troca de Abas
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(tabId).classList.remove("hidden");
+
+            document.querySelectorAll("[id^='btn-']").forEach(btn => {
+                btn.className = "w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition";
+            });
+            const activeBtn = document.getElementById("btn-" + tabId);
+            activeBtn.className = "w-full flex items-center space-x-3 py-3 px-4 rounded-lg bg-emerald-600 text-white font-bold transition";
+
+            // Se for para o painel geral, garante que recalcula estoques e compromissos na tela
+            if (tabId === 'dashboardTab') {
+                loadProducts();
+                loadAgendaAndCalendar();
+            }
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return "-";
+            const date = new Date(isoString);
+            return date.toLocaleString('pt-BR');
+        }
+
+        // =====================================================================
+        // ESTOQUES CRÍTICOS + CALENDÁRIO MENSAL (DASHBOARD)
+        // =====================================================================
+        function renderCriticalStocks(products) {
+            const tbody = document.getElementById("criticalStockTableBody");
+            const noneDiv = document.getElementById("noCriticalStock");
+            tbody.innerHTML = "";
+
+            const criticals = products.filter(p => p.quantidade_atual <= p.estoque_minimo);
+
+            if (criticals.length === 0) {
+                noneDiv.classList.remove("hidden");
+                return;
+            }
+            noneDiv.classList.add("hidden");
+
+            criticals.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-red-50/50 transition">
+                        <td class="p-2.5 font-bold text-gray-800">${p.nome}</td>
+                        <td class="p-2.5 text-center font-bold text-red-600">${p.quantidade_atual} ${p.unidade_medida}</td>
+                        <td class="p-2.5 text-center text-gray-500">${p.estoque_minimo}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById("calendarGrid");
+            const label = document.getElementById("calendarMonthLabel");
+            grid.innerHTML = "";
+
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth(); // 0 a 11
+
+            // Configura título
+            const mesesStr = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            label.innerText = `${mesesStr[month]} ${year}`;
+
+            // Primeiro dia do mês e total de dias
+            const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Dom) a 6 (Sáb)
+            const totalDays = new Date(year, month + 1, 0).getDate();
+
+            // Preenche quadradinhos vazios antes do primeiro dia
+            for (let i = 0; i < firstDayIndex; i++) {
+                grid.innerHTML += `<div class="bg-gray-50/30 calendar-day-cell"></div>`;
+            }
+
+            // Renderiza dias
+            for (let day = 1; day <= totalDays; day++) {
+                // Filtra compromissos deste dia específico
+                const dayComps = LISTA_COMPROMISSOS.filter(c => {
+                    const cDate = new Date(c.data_hora);
+                    return cDate.getFullYear() === year && cDate.getMonth() === month && cDate.getDate() === day;
+                });
+
+                let compHTML = "";
+                dayComps.forEach(c => {
+                    compHTML += `<div class="text-[9px] bg-emerald-100 text-emerald-800 rounded px-1 py-0.5 truncate mt-1 border border-emerald-200" title="${c.titulo}">- ${c.titulo}</div>`;
+                });
+
+                const isToday = (day === today.getDate());
+
+                grid.innerHTML += `
+                    <div class="bg-white p-1.5 border border-gray-100 calendar-day-cell flex flex-col justify-between ${isToday ? 'bg-amber-50 ring-2 ring-amber-400 ring-inset' : ''}">
+                        <span class="text-xs font-bold ${isToday ? 'text-amber-700 font-extrabold' : 'text-gray-400'}">${day}</span>
+                        <div class="flex-grow overflow-y-auto max-h-[50px] scrollbar-thin">
+                            ${compHTML}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // =====================================================================
+        // PRODUTOS (CRUD COMPLETO)
+        // =====================================================================
+        async function loadProducts() {
+            try {
+                const res = await fetch("/produtos/");
+                const products = await res.json();
+                
+                // Popula a tabela de produtos
+                const tbody = document.getElementById("productTableBody");
+                tbody.innerHTML = "";
+                products.forEach(p => {
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-gray-50 transition">
+                            <td class="p-3 font-semibold text-gray-500">#${p.id}</td>
+                            <td class="p-3 font-bold text-gray-800">${p.nome}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded text-xs ${p.quantidade_atual <= p.estoque_minimo ? 'bg-red-100 text-red-700 font-bold' : 'bg-emerald-100 text-emerald-800'}">
+                                    ${p.quantidade_atual} ${p.unidade_medida}
+                                </span>
+                            </td>
+                            <td class="p-3 text-gray-600 cost-field ${!USUARIO_LOGADO.pode_alterar_custos ? 'hidden' : ''}">R$ ${p.preco_custo.toFixed(2)}</td>
+                            <td class="p-3 font-semibold text-emerald-600">R$ ${p.preco_venda.toFixed(2)}</td>
+                            <td class="p-3 text-right space-x-2">
+                                <button onclick="editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})" class="text-blue-500 hover:text-blue-700 ${!USUARIO_LOGADO.pode_movimentar_estoque ? 'opacity-40 pointer-events-none' : ''}">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700 ${!USUARIO_LOGADO.pode_movimentar_estoque ? 'opacity-40 pointer-events-none' : ''}">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                // Atualiza painel de monitoramento crítico
+                renderCriticalStocks(products);
+            } catch (err) { console.error(err); }
+        }
+
+        document.getElementById("productForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("edit_product_id").value;
+            const payload = {
+                nome: document.getElementById("prod_nome").value,
+                unidade_medida: document.getElementById("prod_unidade").value,
+                quantidade_atual: parseFloat(document.getElementById("prod_atual").value),
+                estoque_minimo: parseFloat(document.getElementById("prod_minimo").value),
+                preco_custo: parseFloat(document.getElementById("prod_custo").value || 0),
+                preco_venda: parseFloat(document.getElementById("prod_venda").value)
+            };
+
+            const method = id ? "PUT" : "POST";
+            const url = id ? `/produtos/${id}?usuario_resp=${USUARIO_LOGADO.nome}` : `/produtos/?usuario_resp=${USUARIO_LOGADO.nome}`;
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Produto gravado!");
+                resetProductForm();
+                loadProducts();
+                loadHistory();
+            } else {
+                alert("Erro ao gravar produto.");
+            }
+        });
+
+        function editProduct(p) {
+            document.getElementById("edit_product_id").value = p.id;
+            document.getElementById("prod_nome").value = p.nome;
+            document.getElementById("prod_unidade").value = p.unidade_medida;
+            document.getElementById("prod_minimo").value = p.estoque_minimo;
+            document.getElementById("prod_atual").value = p.quantidade_atual;
+            document.getElementById("prod_custo").value = p.preco_custo;
+            document.getElementById("prod_venda").value = p.preco_venda;
+
+            document.getElementById("productFormTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Editar Produto';
+            document.getElementById("btnCancelEdit").classList.remove("hidden");
+        }
+
+        function resetProductForm() {
+            document.getElementById("productForm").reset();
+            document.getElementById("edit_product_id").value = "";
+            document.getElementById("productFormTitle").innerHTML = '<i class="fa-solid fa-circle-plus text-emerald-500 mr-2"></i> Cadastrar Produto';
+            document.getElementById("btnCancelEdit").classList.add("hidden");
+        }
+
+        async function deleteProduct(id) {
+            if (confirm("Deseja mesmo excluir o produto?")) {
+                await fetch(`/produtos/${id}?usuario_resp=${USUARIO_LOGADO.nome}`, { method: "DELETE" });
+                loadProducts();
+                loadHistory();
+            }
+        }
+
+        // =====================================================================
+        // HISTÓRICO
+        // =====================================================================
+        async function loadHistory() {
+            const res = await fetch("/historico/");
+            const history = await res.json();
+            const tbody = document.getElementById("historyTableBody");
+            tbody.innerHTML = "";
+            history.forEach(h => {
+                let badge = "bg-gray-100 text-gray-800";
+                if (h.tipo_movimentacao === "CADASTRO") badge = "bg-blue-100 text-blue-800 font-bold";
+                if (h.tipo_movimentacao === "ENTRADA") badge = "bg-emerald-100 text-emerald-800 font-bold";
+                if (h.tipo_movimentacao === "SAÍDA") badge = "bg-amber-100 text-amber-800 font-bold";
+                if (h.tipo_movimentacao === "EXCLUSÃO") badge = "bg-red-100 text-red-800 font-bold";
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-3 text-gray-500">${formatDate(h.data_hora)}</td>
+                        <td class="p-3 font-bold text-gray-800">${h.produto_nome}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${badge}">${h.tipo_movimentacao}</span></td>
+                        <td class="p-3 font-semibold">${h.quantidade}</td>
+                        <td class="p-3 text-gray-500">${h.saldo_apos}</td>
+                        <td class="p-3 text-slate-600"><i class="fa-solid fa-user-check text-xs mr-1"></i> ${h.usuario_responsavel}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function clearHistory() {
+            if (confirm("Quer mesmo apagar todo o registro de movimentações? Esta ação é irreversível.")) {
+                await fetch("/historico/", { method: "DELETE" });
+                loadHistory();
+            }
+        }
+
+        // =====================================================================
+        // PEDIDOS FUTUROS (CRUD COMPLETO)
+        // =====================================================================
+        async function loadOrders() {
+            const res = await fetch("/pedidos/");
+            const orders = await res.json();
+            const tbody = document.getElementById("orderTableBody");
+            tbody.innerHTML = "";
+            orders.forEach(o => {
+                let badge = "bg-amber-100 text-amber-800";
+                if (o.status === "Entregue") badge = "bg-emerald-100 text-emerald-800 font-bold";
+                if (o.status === "Cancelado") badge = "bg-red-100 text-red-800";
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-3 text-slate-500 font-semibold">${formatDate(o.data_entrega)}</td>
+                        <td class="p-3 font-bold text-gray-800">${o.cliente_nome}</td>
+                        <td class="p-3 font-medium text-gray-600">${o.produto_nome}</td>
+                        <td class="p-3 font-bold">${o.quantidade}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${badge}">${o.status}</span></td>
+                        <td class="p-3 text-right space-x-1">
+                            <button onclick="changeOrderStatus(${o.id}, 'Entregue')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded transition">Entregue</button>
+                            <button onclick="changeOrderStatus(${o.id}, 'Cancelado')" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded transition">Cancelar</button>
+                            <button onclick="editOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})" class="text-blue-500 hover:text-blue-700 ml-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteOrder(${o.id})" class="text-red-500 hover:text-red-700 ml-1"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById("orderForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("edit_order_id").value;
+            const payload = {
+                cliente_nome: document.getElementById("ord_cliente").value,
+                produto_nome: document.getElementById("ord_produto").value,
+                quantidade: parseFloat(document.getElementById("ord_qtd").value),
+                data_entrega: new Date(document.getElementById("ord_data").value).toISOString()
+            };
+
+            const method = id ? "PUT" : "POST";
+            const url = id ? `/pedidos/${id}` : "/pedidos/";
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Pedido salvo!");
+                resetOrderForm();
+                loadOrders();
+            }
+        });
+
+        function editOrder(o) {
+            document.getElementById("edit_order_id").value = o.id;
+            document.getElementById("ord_cliente").value = o.cliente_nome;
+            document.getElementById("ord_produto").value = o.produto_nome;
+            document.getElementById("ord_qtd").value = o.quantidade;
+            
+            // Corrige formato para datetime-local input
+            const localDate = new Date(o.data_entrega);
+            localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+            document.getElementById("ord_data").value = localDate.toISOString().slice(0, 16);
+
+            document.getElementById("orderFormTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Editar Pedido';
+            document.getElementById("btnCancelOrderEdit").classList.remove("hidden");
+        }
+
+        function resetOrderForm() {
+            document.getElementById("orderForm").reset();
+            document.getElementById("edit_order_id").value = "";
+            document.getElementById("orderFormTitle").innerHTML = '<i class="fa-solid fa-file-invoice-dollar text-emerald-500 mr-2"></i> Lançar Novo Pedido';
+            document.getElementById("btnCancelOrderEdit").classList.add("hidden");
+        }
+
+        async function changeOrderStatus(id, status) {
+            await fetch(`/pedidos/${id}/status?status_novo=${status}`, { method: "PUT" });
+            loadOrders();
+        }
+
+        async function deleteOrder(id) {
+            if (confirm("Excluir este pedido?")) {
+                await fetch(`/pedidos/${id}`, { method: "DELETE" });
+                loadOrders();
+            }
+        }
+
+        // =====================================================================
+        // AGENDA (CRUD COMPLETO)
+        // =====================================================================
+        async function loadAgendaAndCalendar() {
+            const res = await fetch("/agenda/");
+            LISTA_COMPROMISSOS = await res.json();
+            
+            // Popula tabela da aba de agenda
+            const tbody = document.getElementById("agendaTableBody");
+            tbody.innerHTML = "";
+            LISTA_COMPROMISSOS.forEach(a => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-3 font-semibold text-slate-500">${formatDate(a.data_hora)}</td>
+                        <td class="p-3">
+                            <span class="font-bold text-gray-800 block">${a.titulo}</span>
+                            <span class="text-xs text-gray-400 block">${a.descricao || ""}</span>
+                        </td>
+                        <td class="p-3 text-gray-500"><i class="fa-solid fa-location-dot text-xs mr-1 text-slate-400"></i>${a.local || "-"}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editAgenda(${JSON.stringify(a).replace(/"/g, '&quot;')})" class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteCompromisso(${a.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // Renderiza calendário na Tela Inicial
+            renderCalendar();
+        }
+
+        document.getElementById("agendaForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("edit_agenda_id").value;
+            const payload = {
+                titulo: document.getElementById("ag_titulo").value,
+                descricao: document.getElementById("ag_desc").value || null,
+                data_hora: new Date(document.getElementById("ag_data").value).toISOString(),
+                local: document.getElementById("ag_local").value || null
+            };
+
+            const method = id ? "PUT" : "POST";
+            const url = id ? `/agenda/${id}` : "/agenda/";
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Compromisso salvo!");
+                resetAgendaForm();
+                loadAgendaAndCalendar();
+            }
+        });
+
+        function editAgenda(a) {
+            document.getElementById("edit_agenda_id").value = a.id;
+            document.getElementById("ag_titulo").value = a.titulo;
+            document.getElementById("ag_desc").value = a.descricao || "";
+            document.getElementById("ag_local").value = a.local || "";
+            
+            const localDate = new Date(a.data_hora);
+            localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+            document.getElementById("ag_data").value = localDate.toISOString().slice(0, 16);
+
+            document.getElementById("agendaFormTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Editar Compromisso';
+            document.getElementById("btnCancelAgendaEdit").classList.remove("hidden");
+        }
+
+        function resetAgendaForm() {
+            document.getElementById("agendaForm").reset();
+            document.getElementById("edit_agenda_id").value = "";
+            document.getElementById("agendaFormTitle").innerHTML = '<i class="fa-solid fa-calendar-plus text-emerald-500 mr-2"></i> Novo Compromisso';
+            document.getElementById("btnCancelAgendaEdit").classList.add("hidden");
+        }
+
+        async function deleteCompromisso(id) {
+            if (confirm("Remover este compromisso?")) {
+                await fetch(`/agenda/${id}`, { method: "DELETE" });
+                loadAgendaAndCalendar();
+            }
+        }
+
+        // =====================================================================
+        // CLIENTES (CRUD COMPLETO)
+        // =====================================================================
+        async function loadClients() {
+            const res = await fetch("/clientes/");
+            const clients = await res.json();
+            const tbody = document.getElementById("clientTableBody");
+            tbody.innerHTML = "";
+            clients.forEach(c => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-3 font-bold text-gray-800">${c.nome}</td>
+                        <td class="p-3 text-gray-600">${c.documento || '-'}</td>
+                        <td class="p-3 text-gray-600">${c.telefone || '-'}</td>
+                        <td class="p-3 text-gray-600">${c.email || '-'}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editClient(${JSON.stringify(c).replace(/"/g, '&quot;')})" class="text-blue-500 hover:text-blue-700 ${!USUARIO_LOGADO.pode_gerenciar_clientes ? 'opacity-40 pointer-events-none' : ''}"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteClient(${c.id})" class="text-red-500 hover:text-red-700 ${!USUARIO_LOGADO.pode_gerenciar_clientes ? 'opacity-40 pointer-events-none' : ''}"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById("clientForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("edit_client_id").value;
+            const payload = {
+                nome: document.getElementById("cli_nome").value,
+                documento: document.getElementById("cli_doc").value || null,
+                telefone: document.getElementById("cli_tel").value || null,
+                email: document.getElementById("cli_email").value || null
+            };
+
+            const method = id ? "PUT" : "POST";
+            const url = id ? `/clientes/${id}` : "/clientes/";
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Cliente gravado!");
+                resetClientForm();
+                loadClients();
+            } else {
+                alert("Erro ao salvar dados do cliente.");
+            }
+        });
+
+        function editClient(c) {
+            document.getElementById("edit_client_id").value = c.id;
+            document.getElementById("cli_nome").value = c.nome;
+            document.getElementById("cli_doc").value = c.documento || "";
+            document.getElementById("cli_tel").value = c.telefone || "";
+            document.getElementById("cli_email").value = c.email || "";
+
+            document.getElementById("clientFormTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Editar Cliente';
+            document.getElementById("btnCancelClientEdit").classList.remove("hidden");
+        }
+
+        function resetClientForm() {
+            document.getElementById("clientForm").reset();
+            document.getElementById("edit_client_id").value = "";
+            document.getElementById("clientFormTitle").innerHTML = '<i class="fa-solid fa-user-plus text-emerald-500 mr-2"></i> Cadastrar Cliente';
+            document.getElementById("btnCancelClientEdit").classList.add("hidden");
+        }
+
+        async function deleteClient(id) {
+            if (confirm("Excluir cliente permanentemente?")) {
+                await fetch(`/clientes/${id}`, { method: "DELETE" });
+                loadClients();
+            }
+        }
+
+        // =====================================================================
+        // USUÁRIOS (CRUD COMPLETO)
+        // =====================================================================
+        async function loadUsers() {
+            const res = await fetch("/usuarios/");
+            const users = await res.json();
+            const tbody = document.getElementById("userTableBody");
+            tbody.innerHTML = "";
+            users.forEach(u => {
+                let perms = [];
+                if (u.pode_gerenciar_usuarios) perms.push("Admin");
+                if (u.pode_alterar_custos) perms.push("Custos");
+                if (u.pode_movimentar_estoque) perms.push("Estoque");
+                if (u.pode_gerenciar_clientes) perms.push("Clientes");
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-3 font-bold text-gray-800">${u.nome}</td>
+                        <td class="p-3 text-gray-500">${u.usuario_login}</td>
+                        <td class="p-3 font-mono text-gray-600">${u.senha_hash}</td>
+                        <td class="p-3">
+                            <span class="text-xs bg-slate-200 text-slate-800 px-2 py-1 rounded font-bold">${perms.join(" | ")}</span>
+                        </td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editUser(${JSON.stringify(u).replace(/"/g, '&quot;')})" class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteUser(${u.id})" class="text-red-500 hover:text-red-700 ${u.usuario_login === 'admin' ? 'hidden' : ''}"><i class="fa-solid fa-trash-can"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById("userForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("edit_user_id").value;
+            const payload = {
+                nome: document.getElementById("u_nome").value,
+                usuario_login: document.getElementById("u_login").value,
+                senha: document.getElementById("u_senha").value,
+                pode_gerenciar_usuarios: document.getElementById("perm_usuarios").checked,
+                pode_alterar_custos: document.getElementById("perm_custos").checked,
+                pode_movimentar_estoque: document.getElementById("perm_estoque").checked,
+                pode_gerenciar_clientes: document.getElementById("perm_clientes").checked
+            };
+
+            const method = id ? "PUT" : "POST";
+            const url = id ? `/usuarios/${id}` : "/usuarios/";
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Usuário salvo!");
+                resetUserForm();
+                loadUsers();
+            } else {
+                alert("Erro ao cadastrar. O login pode estar em uso.");
+            }
+        });
+
+        function editUser(u) {
+            document.getElementById("edit_user_id").value = u.id;
+            document.getElementById("u_nome").value = u.nome;
+            document.getElementById("u_login").value = u.usuario_login;
+            document.getElementById("u_senha").value = u.senha_hash;
+            document.getElementById("perm_usuarios").checked = u.pode_gerenciar_usuarios;
+            document.getElementById("perm_custos").checked = u.pode_alterar_custos;
+            document.getElementById("perm_estoque").checked = u.pode_movimentar_estoque;
+            document.getElementById("perm_clientes").checked = u.pode_gerenciar_clientes;
+
+            document.getElementById("userFormTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i> Editar Usuário';
+            document.getElementById("btnCancelUserEdit").classList.remove("hidden");
+        }
+
+        function resetUserForm() {
+            document.getElementById("userForm").reset();
+            document.getElementById("edit_user_id").value = "";
+            document.getElementById("userFormTitle").innerHTML = '<i class="fa-solid fa-user-gear text-emerald-500 mr-2"></i> Adicionar Usuário';
+            document.getElementById("btnCancelUserEdit").classList.add("hidden");
+        }
+
+        async function deleteUser(id) {
+            if (confirm("Excluir operador?")) {
+                await fetch(`/usuarios/${id}`, { method: "DELETE" });
+                loadUsers();
+            }
+        }
+    </script>
+</body>
+</html>
