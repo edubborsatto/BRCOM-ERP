@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
-# USUÁRIO
 class UsuarioBase(BaseModel):
     nome: str
     usuario_login: str
@@ -19,7 +18,6 @@ class UsuarioResponse(UsuarioBase):
     class Config:
         from_attributes = True
 
-# PRODUTO
 class ProdutoBase(BaseModel):
     nome: str
     unidade_medida: str
@@ -36,7 +34,6 @@ class ProdutoResponse(ProdutoBase):
     class Config:
         from_attributes = True
 
-# CLIENTE
 class ClienteBase(BaseModel):
     nome: str
     documento: Optional[str] = None
@@ -51,7 +48,6 @@ class ClienteResponse(ClienteBase):
     class Config:
         from_attributes = True
 
-# HISTÓRICO ESTOQUE
 class HistoricoResponse(BaseModel):
     id: int
     produto_nome: str
@@ -63,7 +59,6 @@ class HistoricoResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# COMPROMISSO AGENDA
 class CompromissoBase(BaseModel):
     titulo: str
     descricao: Optional[str] = None
@@ -78,7 +73,6 @@ class CompromissoResponse(CompromissoBase):
     class Config:
         from_attributes = True
 
-# PEDIDOS FUTUROS
 class PedidoFuturoBase(BaseModel):
     cliente_nome: str
     produto_nome: str
@@ -94,7 +88,6 @@ class PedidoFuturoResponse(PedidoFuturoBase):
     class Config:
         from_attributes = True
 
-# LOGIN
 class LoginRequest(BaseModel):
     usuario_login: str
     senha: str

@@ -39,7 +39,7 @@ class HistoricoEstoque(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     produto_nome = Column(String, nullable=False)
-    tipo_movimentacao = Column(String, nullable=False) # 'ENTRADA', 'SAÍDA', 'CADASTRO', 'EXCLUSÃO'
+    tipo_movimentacao = Column(String, nullable=False)
     quantidade = Column(Float, nullable=False)
     saldo_apos = Column(Float, nullable=False)
     usuario_responsavel = Column(String, nullable=False)
@@ -62,4 +62,4 @@ class PedidoFuturo(Base):
     produto_nome = Column(String, nullable=False)
     quantidade = Column(Float, nullable=False)
     data_entrega = Column(DateTime, nullable=False)
-    status = Column(String, default="Pendente") # 'Pendente', 'Entregue', 'Cancelado'
+    status = Column(String, default="Pendente")
