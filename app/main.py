@@ -12,11 +12,53 @@ import app.schemas as schemas
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="BRCom ERP", version="4.0.0")
+app = FastAPI(title="BRCom ERP", version="4.1.0")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates_dir = os.path.join(os.path.dirname(BASE_DIR), "templates")
 templates = Jinja2Templates(directory=templates_dir)
+
+# Inicializa os 4 usuários com a matriz de permissões exata
+def inicializar_usuarios_padrao():
+    db = next(get_db())
+    try:
+        usuarios_para_criar = [
+            {
+                "nome": "Eduardo", "usuario_login": "eduardo", "senha_hash": "Eduardo12345",
+                "pode_gerenciar_usuarios": True, "pode_alterar_custos": True,
+                "pode_movimentar_estoque": True, "pode_gerenciar_clientes": True,
+                "pode_acessar_agenda": True, "pode_acessar_docs": True, "pode_gerenciar_historico": True
+            },
+            {
+                "nome": "Rogerio", "usuario_login": "rogerio", "senha_hash": "Rogerio12345",
+                "pode_gerenciar_usuarios": False, "pode_alterar_custos": True,
+                "pode_movimentar_estoque": True, "pode_gerenciar_clientes": True,
+                "pode_acessar_agenda": True, "pode_acessar_docs": False, "pode_gerenciar_historico": True
+            },
+            {
+                "nome": "Joao", "usuario_login": "joao", "senha_hash": "Joao12345",
+                "pode_gerenciar_usuarios": False, "pode_alterar_custos": True,
+                "pode_movimentar_estoque": True, "pode_gerenciar_clientes": True,
+                "pode_acessar_agenda": True, "pode_acessar_docs": False, "pode_gerenciar_historico": True
+            },
+            {
+                "nome": "Iara", "usuario_login": "iara", "senha_hash": "Iara12345",
+                "pode_gerenciar_usuarios": False, "pode_alterar_custos": False,
+                "pode_movimentar_estoque": True, "pode_gerenciar_clientes": False,
+                "pode_acessar_agenda": False, "pode_acessar_docs": False, "pode_gerenciar_historico": False
+            }
+        ]
+
+        for u_data in usuarios_para_criar:
+            existe = db.query(models.Usuario).filter(models.Usuario.usuario_login == u_data["usuario_login"]).first()
+            if not existe:
+                novo_u = models.Usuario(**u_data)
+                db.add(novo_u)
+        db.commit()
+    finally:
+        db.close()
+
+inicializar_usuarios_padrao()
 
 @app.get("/", response_class=HTMLResponse)
 def ler_index(request: Request):
@@ -24,7 +66,7 @@ def ler_index(request: Request):
 
 @app.post("/api/login")
 def login(dados: schemas.LoginRequest, db: Session = Depends(get_db)):
-    usuario = db.query(models.Usuario).filter(models.Usuario.usuario_login == dados.usuario_login).first()
+    usuario = db.query(models.Usuario).filter(models.Usuario.usuario_login == dados.usuario_login.lower()).first()
     if not usuario or usuario.senha_hash != dados.senha:
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
     return {
@@ -36,7 +78,10 @@ def login(dados: schemas.LoginRequest, db: Session = Depends(get_db)):
             "pode_gerenciar_usuarios": usuario.pode_gerenciar_usuarios,
             "pode_alterar_custos": usuario.pode_alterar_custos,
             "pode_movimentar_estoque": usuario.pode_movimentar_estoque,
-            "pode_gerenciar_clientes": usuario.pode_gerenciar_clientes
+            "pode_gerenciar_clientes": usuario.pode_gerenciar_clientes,
+            "pode_acessar_agenda": usuario.pode_acessar_agenda,
+            "pode_acessar_docs": usuario.pode_acessar_docs,
+            "pode_gerenciar_historico": usuario.pode_gerenciar_historico
         }
     }
 
@@ -100,7 +145,7 @@ def excluir_produto(produto_id: int, usuario_resp: str = "Sistema", db: Session 
     db.commit()
     return {"status": "success"}
 
-# HISTÓRICO (SPRINT 4: REMOÇÃO INDIVIDUAL ADICIONADA)
+# HISTÓRICO
 @app.get("/historico/", response_model=List[schemas.HistoricoResponse])
 def listar_historico(db: Session = Depends(get_db)):
     return db.query(models.HistoricoEstoque).order_by(models.HistoricoEstoque.data_hora.desc()).all()
@@ -129,7 +174,9 @@ def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db))
     novo_usuario = models.Usuario(
         nome=usuario.nome, usuario_login=usuario.usuario_login, senha_hash=usuario.senha,
         pode_gerenciar_usuarios=usuario.pode_gerenciar_usuarios, pode_alterar_custos=usuario.pode_alterar_custos,
-        pode_movimentar_estoque=usuario.pode_movimentar_estoque, pode_gerenciar_clientes=usuario.pode_gerenciar_clientes
+        pode_movimentar_estoque=usuario.pode_movimentar_estoque, pode_gerenciar_clientes=usuario.pode_gerenciar_clientes,
+        pode_acessar_agenda=usuario.pode_acessar_agenda, pode_acessar_docs=usuario.pode_acessar_docs,
+        pode_gerenciar_historico=usuario.pode_gerenciar_historico
     )
     db.add(novo_usuario)
     db.commit()
@@ -138,17 +185,7 @@ def criar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db))
 
 @app.get("/usuarios/", response_model=List[schemas.UsuarioResponse])
 def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(models.Usuario).all()
-    if not usuarios:
-        admin_padrao = models.Usuario(
-            nome="Administrador", usuario_login="admin", senha_hash="admin123",
-            pode_gerenciar_usuarios=True, pode_alterar_custos=True, pode_movimentar_estoque=True, pode_gerenciar_clientes=True
-        )
-        db.add(admin_padrao)
-        db.commit()
-        db.refresh(admin_padrao)
-        return [admin_padrao]
-    return usuarios
+    return db.query(models.Usuario).all()
 
 @app.put("/usuarios/{usuario_id}", response_model=schemas.UsuarioResponse)
 def atualizar_usuario(usuario_id: int, dados: schemas.UsuarioCreate, db: Session = Depends(get_db)):
@@ -162,6 +199,9 @@ def atualizar_usuario(usuario_id: int, dados: schemas.UsuarioCreate, db: Session
     usr.pode_alterar_custos = dados.pode_alterar_custos
     usr.pode_movimentar_estoque = dados.pode_movimentar_estoque
     usr.pode_gerenciar_clientes = dados.pode_gerenciar_clientes
+    usr.pode_acessar_agenda = dados.pode_acessar_agenda
+    usr.pode_acessar_docs = dados.pode_acessar_docs
+    usr.pode_gerenciar_historico = dados.pode_gerenciar_historico
     db.commit()
     db.refresh(usr)
     return usr
@@ -214,11 +254,11 @@ def excluir_cliente(cliente_id: int, db: Session = Depends(get_db)):
 # AGENDA
 @app.post("/agenda/", response_model=schemas.CompromissoResponse, status_code=201)
 def criar_compromisso(comp: schemas.CompromissoCreate, db: Session = Depends(get_db)):
-    novo_comp = models.Compromisso(**comp.dict())
-    db.add(novo_comp)
+    novo_compromisso = models.Compromisso(**comp.dict())
+    db.add(novo_compromisso)
     db.commit()
-    db.refresh(novo_comp)
-    return novo_comp
+    db.refresh(novo_compromisso)
+    return novo_compromisso
 
 @app.get("/agenda/", response_model=List[schemas.CompromissoResponse])
 def listar_compromissos(db: Session = Depends(get_db)):

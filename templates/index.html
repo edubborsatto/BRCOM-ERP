@@ -58,17 +58,16 @@
                     <button onclick="switchTab('pedidosTab')" id="btn-pedidosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
                         <i class="fa-solid fa-calendar-check text-lg"></i><span>Pedidos Futuros</span>
                     </button>
-                    <button onclick="switchTab('agendaTab')" id="btn-agendaTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
+                    <button onclick="switchTab('agendaTab')" id="btn-agendaTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
                         <i class="fa-solid fa-calendar-days text-lg"></i><span>Agenda</span>
                     </button>
-                    <button onclick="switchTab('clientesTab')" id="btn-clientesTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
+                    <button onclick="switchTab('clientesTab')" id="btn-clientesTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
                         <i class="fa-solid fa-user-group text-lg"></i><span>Clientes</span>
                     </button>
                     <button onclick="switchTab('usuariosTab')" id="btn-usuariosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
                         <i class="fa-solid fa-users-gear text-lg"></i><span>Controle de Usuários</span>
                     </button>
-                    <!-- SPRINT 4: ABA DE INTEGRAÇÃO DA API SWAGGER -->
-                    <button onclick="switchTab('docsTab')" id="btn-docsTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
+                    <button onclick="switchTab('docsTab')" id="btn-docsTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
                         <i class="fa-solid fa-code text-lg"></i><span>Documentação API</span>
                     </button>
                 </nav>
@@ -128,8 +127,8 @@
             <!-- REGISTRO DE ESTOQUE (HISTÓRICO) -->
             <div id="historicoTab" class="tab-content hidden">
                 <div class="bg-white p-6 rounded-lg shadow border">
-                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-gray-800">Histórico de Movimentações</h2><button onclick="clearAllHistory()" class="bg-red-600 text-white text-xs px-3 py-1.5 rounded font-bold">Limpar Tudo</button></div>
-                    <table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Horário</th><th class="p-3">Produto</th><th class="p-3">Operação</th><th class="p-3">Qtd</th><th class="p-3">Saldo</th><th class="p-3">Responsável</th><th class="p-3 text-right">Excluir</th></tr></thead><tbody id="historyTableBody" class="text-sm"></tbody></table>
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-gray-800">Histórico de Movimentações</h2><button onclick="clearAllHistory()" class="hist-admin-action hidden bg-red-600 text-white text-xs px-3 py-1.5 rounded font-bold">Limpar Tudo</button></div>
+                    <table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Horário</th><th class="p-3">Produto</th><th class="p-3">Operação</th><th class="p-3">Qtd</th><th class="p-3">Saldo</th><th class="p-3">Responsável</th><th class="p-3 text-right hist-admin-action hidden">Excluir</th></tr></thead><tbody id="historyTableBody" class="text-sm"></tbody></table>
                 </div>
             </div>
 
@@ -176,7 +175,7 @@
                     <form id="clientForm" class="space-y-4">
                         <input type="hidden" id="edit_client_id">
                         <div><label class="block text-xs font-bold text-gray-500 mb-1">NOME DO CLIENTE</label><input type="text" id="cli_nome" required class="w-full px-3 py-2 border rounded"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">DOCUMENTO</label><input type="text" id="cli_doc" class="w-full px-3 py-2 border rounded"></div>
+                        <div><label class="block text-xs font-bold text-gray-500 mb-1">DOCUMENTO (CPF/CNPJ)</label><input type="text" id="cli_doc" class="w-full px-3 py-2 border rounded"></div>
                         <div class="grid grid-cols-2 gap-4">
                             <div><label class="block text-xs font-bold text-gray-500 mb-1">TELEFONE</label><input type="text" id="cli_tel" class="w-full px-3 py-2 border rounded"></div>
                             <div><label class="block text-xs font-bold text-gray-500 mb-1">EMAIL</label><input type="email" id="cli_email" class="w-full px-3 py-2 border rounded"></div>
@@ -203,14 +202,17 @@
                             <label class="flex items-center space-x-2"><input type="checkbox" id="perm_custos"><span>Ver Custos</span></label>
                             <label class="flex items-center space-x-2"><input type="checkbox" id="perm_estoque"><span>Mover Estoque</span></label>
                             <label class="flex items-center space-x-2"><input type="checkbox" id="perm_clientes"><span>Clientes</span></label>
+                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_agenda"><span>Agenda</span></label>
+                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_docs"><span>Docs API</span></label>
+                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_historico"><span>Gerenciar Histórico</span></label>
                         </div>
                         <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar Usuário</button>
                     </form>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Usuários do Sistema</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Nome</th><th class="p-3">Login</th><th class="p-3">Senha</th><th class="p-3">Ações</th></tr></thead><tbody id="userTableBody" class="text-sm"></tbody></table></div>
+                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Usuários do Sistema</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Nome</th><th class="p-3">Login</th><th class="p-3">Senha</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="userTableBody" class="text-sm"></tbody></table></div>
             </div>
 
-            <!-- SPRINT 4: TELA DA DOCUMENTAÇÃO API SWAGGER EM iframe INTEGRADO -->
+            <!-- DOCUMENTAÇÃO API -->
             <div id="docsTab" class="tab-content hidden w-full h-full">
                 <div class="bg-white rounded-lg shadow border w-full h-[82vh] overflow-hidden">
                     <iframe src="/docs" class="w-full h-full border-none"></iframe>
@@ -237,7 +239,7 @@
                 const data = await response.json();
                 USUARIO_LOGADO = data.usuario;
                 entrarNoPainel();
-            } else { alert("Login inválido."); }
+            } else { alert("Login ou senha incorretos."); }
         });
 
         function entrarNoPainel() {
@@ -259,8 +261,22 @@
             if (USUARIO_LOGADO.pode_gerenciar_usuarios) document.getElementById("btn-usuariosTab").classList.remove("hidden");
             else document.getElementById("btn-usuariosTab").classList.add("hidden");
 
+            if (USUARIO_LOGADO.pode_acessar_docs) document.getElementById("btn-docsTab").classList.remove("hidden");
+            else document.getElementById("btn-docsTab").classList.add("hidden");
+
+            if (USUARIO_LOGADO.pode_acessar_agenda) document.getElementById("btn-agendaTab").classList.remove("hidden");
+            else document.getElementById("btn-agendaTab").classList.add("hidden");
+
+            if (USUARIO_LOGADO.pode_gerenciar_clientes) document.getElementById("btn-clientesTab").classList.remove("hidden");
+            else document.getElementById("btn-clientesTab").classList.add("hidden");
+
             document.querySelectorAll(".cost-field").forEach(el => {
                 if (USUARIO_LOGADO.pode_alterar_custos) el.classList.remove("hidden");
+                else el.classList.add("hidden");
+            });
+
+            document.querySelectorAll(".hist-admin-action").forEach(el => {
+                if (USUARIO_LOGADO.pode_gerenciar_historico) el.classList.remove("hidden");
                 else el.classList.add("hidden");
             });
         }
@@ -334,7 +350,7 @@
         function resetProductForm() { document.getElementById("productForm").reset(); document.getElementById("edit_product_id").value = ""; document.getElementById("productFormTitle").innerText = "Cadastrar Produto"; }
         async function deleteProduct(id) { if(confirm("Excluir item?")) { await fetch(`/produtos/${id}?usuario_resp=${USUARIO_LOGADO.nome}`, { method: "DELETE" }); loadProducts(); loadHistory(); } }
 
-        // HISTÓRICO (SPRINT 4: REMOÇÃO INDIVIDUAL IMPLEMENTADA)
+        // HISTÓRICO
         async function loadHistory() {
             const res = await fetch("/historico/");
             const history = await res.json();
@@ -349,7 +365,7 @@
                         <td class="p-3 font-semibold">${h.quantidade}</td>
                         <td class="p-3 text-gray-400">${h.saldo_apos}</td>
                         <td class="p-3 text-slate-600">${h.usuario_responsavel}</td>
-                        <td class="p-3 text-right"><button onclick="deleteHistoryRow(${h.id})" class="text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></td>
+                        <td class="p-3 text-right hist-admin-action ${!USUARIO_LOGADO.pode_gerenciar_historico?'hidden':''}"><button onclick="deleteHistoryRow(${h.id})" class="text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></td>
                     </tr>
                 `;
             });
@@ -357,7 +373,7 @@
         async function deleteHistoryRow(id) { if(confirm("Excluir este registro da auditoria?")) { await fetch(`/historico/${id}`, { method: "DELETE" }); loadHistory(); } }
         async function clearAllHistory() { if(confirm("Limpar todo o histórico?")) { await fetch("/historico/", { method: "DELETE" }); loadHistory(); } }
 
-        # CLIENTES (SPRINT 4: ATUALIZADO COM EDICÃO COMPLETA)
+        // CLIENTES
         async function loadClients() {
             const res = await fetch("/clientes/");
             const clients = await res.json();
@@ -399,7 +415,7 @@
         function resetClientForm() { document.getElementById("clientForm").reset(); document.getElementById("edit_client_id").value = ""; document.getElementById("clientFormTitle").innerText = "Cadastrar Cliente"; }
         async function deleteClient(id) { if(confirm("Excluir cliente?")) { await fetch(`/clientes/${id}`, { method: "DELETE" }); loadClients(); } }
 
-        # PEDIDOS (SPRINT 4: ATUALIZADO COM EDICÃO COMPLETA)
+        // PEDIDOS
         async function loadOrders() {
             const res = await fetch("/pedidos/");
             const orders = await res.json();
@@ -444,7 +460,7 @@
         async function changeOrderStatus(id, st) { await fetch(`/pedidos/${id}/status?status_novo=${st}`, { method: "PUT" }); loadOrders(); }
         async function deleteOrder(id) { if(confirm("Excluir pedido?")) { await fetch(`/pedidos/${id}`, { method: "DELETE" }); loadOrders(); } }
 
-        # AGENDA
+        // AGENDA
         async function loadAgenda() {
             const res = await fetch("/agenda/");
             LISTA_COMPROMISSOS = await res.json();
@@ -501,7 +517,7 @@
             }
         }
 
-        # USUÁRIOS
+        // USUÁRIOS
         async function loadUsers() {
             const res = await fetch("/usuarios/");
             const users = await res.json();
@@ -515,7 +531,7 @@
                         <td class="p-3 font-mono text-xs text-gray-400">${u.senha_hash}</td>
                         <td class="p-3 text-right space-x-2">
                             <button onclick="editUser(${JSON.stringify(u).replace(/"/g, '&quot;')})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteUser(${u.id})" class="text-red-500 ${u.usuario_login==='admin'?'hidden':''}"><i class="fa-solid fa-trash-can"></i></button>
+                            <button onclick="deleteUser(${u.id})" class="text-red-500 ${u.usuario_login==='eduardo'?'hidden':''}"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
                 `;
@@ -525,7 +541,18 @@
         document.getElementById("userForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const id = document.getElementById("edit_user_id").value;
-            const payload = { nome: document.getElementById("u_nome").value, usuario_login: document.getElementById("u_login").value, senha: document.getElementById("u_senha").value, pode_gerenciar_usuarios: document.getElementById("perm_usuarios").checked, pode_alterar_custos: document.getElementById("perm_custos").checked, pode_movimentar_estoque: document.getElementById("perm_estoque").checked, pode_gerenciar_clientes: document.getElementById("perm_clientes").checked };
+            const payload = {
+                nome: document.getElementById("u_nome").value,
+                usuario_login: document.getElementById("u_login").value,
+                senha: document.getElementById("u_senha").value,
+                pode_gerenciar_usuarios: document.getElementById("perm_usuarios").checked,
+                pode_alterar_custos: document.getElementById("perm_custos").checked,
+                pode_movimentar_estoque: document.getElementById("perm_estoque").checked,
+                pode_gerenciar_clientes: document.getElementById("perm_clientes").checked,
+                pode_acessar_agenda: document.getElementById("perm_agenda").checked,
+                pode_acessar_docs: document.getElementById("perm_docs").checked,
+                pode_gerenciar_historico: document.getElementById("perm_historico").checked
+            };
             const url = id ? `/usuarios/${id}` : "/usuarios/";
             const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             if(res.ok) { resetUserForm(); loadUsers(); }
@@ -540,6 +567,9 @@
             document.getElementById("perm_custos").checked = u.pode_alterar_custos;
             document.getElementById("perm_estoque").checked = u.pode_movimentar_estoque;
             document.getElementById("perm_clientes").checked = u.pode_gerenciar_clientes;
+            document.getElementById("perm_agenda").checked = u.pode_acessar_agenda;
+            document.getElementById("perm_docs").checked = u.pode_acessar_docs;
+            document.getElementById("perm_historico").checked = u.pode_gerenciar_historico;
             document.getElementById("userFormTitle").innerText = "Editar Usuário";
         }
         function resetUserForm() { document.getElementById("userForm").reset(); document.getElementById("edit_user_id").value = ""; document.getElementById("userFormTitle").innerText = "Adicionar Usuário"; }

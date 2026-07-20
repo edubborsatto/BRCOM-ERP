@@ -9,6 +9,9 @@ class UsuarioBase(BaseModel):
     pode_alterar_custos: bool = False
     pode_movimentar_estoque: bool = False
     pode_gerenciar_clientes: bool = False
+    pode_acessar_agenda: bool = False
+    pode_acessar_docs: bool = False
+    pode_gerenciar_historico: bool = False
 
 class UsuarioCreate(UsuarioBase):
     senha: str

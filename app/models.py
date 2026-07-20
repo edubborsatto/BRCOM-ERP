@@ -9,10 +9,15 @@ class Usuario(Base):
     nome = Column(String, nullable=False)
     usuario_login = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
+    
+    # Permissões do Menu / Módulos
     pode_gerenciar_usuarios = Column(Boolean, default=False)
     pode_alterar_custos = Column(Boolean, default=False)
     pode_movimentar_estoque = Column(Boolean, default=False)
     pode_gerenciar_clientes = Column(Boolean, default=False)
+    pode_acessar_agenda = Column(Boolean, default=False)
+    pode_acessar_docs = Column(Boolean, default=False)
+    pode_gerenciar_historico = Column(Boolean, default=False)
 
 class Produto(Base):
     __tablename__ = "produtos"
