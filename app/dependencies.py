@@ -38,3 +38,13 @@ def require_permission(permission: str) -> Callable:
         return usuario
 
     return dependency
+
+
+def require_admin(usuario: models.Usuario = Depends(current_user)) -> models.Usuario:
+    """Administrador é quem pode gerenciar usuários e configurações críticas."""
+    if not usuario.pode_gerenciar_usuarios:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ação permitida somente para administrador",
+        )
+    return usuario
