@@ -16,5 +16,5 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: flake8 app tests
-      - run: pytest -q
+      - run: python -m pytest -q
       - run: python -m compileall -q app
