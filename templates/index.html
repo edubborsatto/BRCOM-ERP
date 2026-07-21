@@ -1,620 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRCom ERP - Gestão e Performance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-        .calendar-day-cell { min-height: 85px; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>BRCom ERP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body class="bg-gray-100 font-sans min-h-screen">
+<body class="bg-slate-100 text-slate-800">
+  <div id="toast" class="toast hidden"></div>
+  <section id="loginScreen" class="min-h-screen grid place-items-center p-4">
+    <form id="loginForm" class="card w-full max-w-sm p-7 space-y-4">
+      <div class="text-center"><i class="fa-solid fa-boxes-stacked text-5xl text-emerald-600"></i><h1 class="text-2xl font-black mt-2">BRCom ERP</h1><p class="text-sm text-slate-500">Gestão industrial integrada</p></div>
+      <label>Usuário<input id="login_user" required autocomplete="username"></label>
+      <label>Senha<input id="login_pass" type="password" required autocomplete="current-password"></label>
+      <button class="btn-primary w-full" type="submit">Entrar</button>
+    </form>
+  </section>
 
-    <!-- LOGIN -->
-    <div id="loginScreen" class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl border w-full max-w-md">
-            <div class="text-center mb-6">
-                <i class="fa-solid fa-boxes-stacked text-5xl text-emerald-500 mb-2"></i>
-                <h1 class="text-2xl font-bold text-gray-800">BRCom ERP</h1>
-                <p class="text-sm text-gray-500">Gestão corporativa integrada</p>
-            </div>
-            <form id="loginForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Usuário</label>
-                    <input type="text" id="login_user" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Senha</label>
-                    <input type="password" id="login_pass" required class="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500 outline-none">
-                </div>
-                <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-md shadow transition">Entrar</button>
-            </form>
+  <div id="mainDashboard" class="hidden min-h-screen">
+    <div id="menuBackdrop" class="menu-backdrop hidden"></div>
+    <aside id="sidebar" class="sidebar">
+      <div class="h-16 px-5 flex items-center justify-between border-b border-slate-700">
+        <span class="font-black text-emerald-400"><i class="fa-solid fa-boxes-stacked mr-2"></i>BRCom <span class="text-white">ERP</span></span>
+        <button id="closeMenu" class="lg:hidden text-2xl" aria-label="Fechar menu">×</button>
+      </div>
+      <nav class="p-3 overflow-y-auto flex-1">
+        <button data-tab="dashboardTab"><i class="fa-solid fa-chart-line"></i>Painel</button>
+        <button data-tab="produtosTab"><i class="fa-solid fa-box"></i>Produtos</button>
+        <button data-tab="estoqueTab"><i class="fa-solid fa-arrow-right-arrow-left"></i>Movimentar estoque</button>
+        <button data-tab="formulasTab" data-cost><i class="fa-solid fa-calculator"></i>Fórmulas e custos</button>
+        <button data-tab="orcamentosTab"><i class="fa-solid fa-file-invoice-dollar"></i>Orçamentos</button>
+        <button data-tab="osTab"><i class="fa-solid fa-screwdriver-wrench"></i>Ordens de serviço</button>
+        <button data-tab="vendasTab" data-cost><i class="fa-solid fa-receipt"></i>Vendas e documentos</button>
+        <button data-tab="relatoriosTab"><i class="fa-solid fa-chart-column"></i>Relatórios</button>
+        <button data-tab="clientesTab" data-clients><i class="fa-solid fa-user-group"></i>Clientes</button>
+        <button data-tab="agendaTab" data-agenda><i class="fa-solid fa-calendar-days"></i>Agenda</button>
+        <button data-tab="pedidosTab"><i class="fa-solid fa-calendar-check"></i>Pedidos futuros</button>
+        <button data-tab="historicoTab"><i class="fa-solid fa-clock-rotate-left"></i>Auditoria</button>
+        <button data-tab="usuariosTab" data-admin><i class="fa-solid fa-users-gear"></i>Usuários</button>
+        <a id="docsLink" href="/docs" target="_blank" data-docs><i class="fa-solid fa-code"></i>Documentação API</a>
+      </nav>
+      <div class="p-4 bg-slate-900"><div id="userNameDisplay" class="text-sm text-emerald-400 mb-2"></div><button id="logoutBtn" class="btn-danger w-full">Sair</button></div>
+    </aside>
+
+    <header class="mobile-header"><button id="openMenu" aria-label="Abrir menu"><i class="fa-solid fa-bars"></i></button><strong id="mobileTitle">Painel</strong><span class="w-8"></span></header>
+    <main class="main-content">
+      <section id="dashboardTab" class="tab-content">
+        <div class="page-title"><div><h1>Painel geral</h1><p>Visão rápida da operação</p></div></div>
+        <div id="summaryCards" class="stats-grid"></div>
+        <div class="card p-5 mt-5"><h2>Estoque abaixo do mínimo</h2><div class="table-wrap"><table><thead><tr><th>Código</th><th>Produto</th><th>Tipo</th><th>Atual</th><th>Mínimo</th></tr></thead><tbody id="criticalStock"></tbody></table></div></div>
+      </section>
+
+      <section id="produtosTab" class="tab-content hidden">
+        <div class="page-title"><div><h1>Produtos</h1><p>Matérias-primas e produtos acabados</p></div><button class="btn-primary" data-toggle="productPanel">+ Novo produto</button></div>
+        <div id="productPanel" class="card p-5 mb-5 hidden">
+          <form id="productForm" class="form-grid"><input type="hidden" id="prod_id">
+            <label>Código próprio<input id="prod_codigo" required placeholder="Ex.: CT-050-03T"></label><label class="col-span-2">Nome<input id="prod_nome" required></label>
+            <label>Tipo<select id="prod_tipo"><option value="MATERIA_PRIMA">Matéria-prima</option><option value="PRODUTO_ACABADO">Produto acabado</option></select></label><label>Família<input id="prod_familia"></label><label>Variação<input id="prod_variacao"></label>
+            <label>Unidade<select id="prod_unidade"><option>UN</option><option>M</option><option>KG</option><option>RL</option></select></label><label>Quantidade inicial<input id="prod_qtd" type="number" step="0.0001" min="0" value="0"></label><label>Estoque mínimo<input id="prod_minimo" type="number" step="0.0001" min="0" value="0"></label>
+            <label data-cost-field>Custo (R$)<input id="prod_custo" type="number" step="0.01" min="0" value="0"></label><label>Venda (R$)<input id="prod_venda" type="number" step="0.01" min="0" value="0"></label>
+            <label>Comprimento (m)<input id="prod_comprimento" type="number" step="0.001" min="0"></label><label>Largura (mm)<input id="prod_largura" type="number" step="0.001" min="0"></label><label>Resistência (kg/t)<input id="prod_resistencia" type="number" step="0.001" min="0"></label><label>Fator de segurança<input id="prod_fs" type="number" step="0.01" min="0"></label>
+            <label class="col-span-full">Especificações<textarea id="prod_especificacoes"></textarea></label><div class="form-actions"><button type="button" class="btn-secondary" data-toggle="productPanel">Cancelar</button><button class="btn-primary">Salvar produto</button></div>
+          </form>
         </div>
-    </div>
+        <div class="card p-4"><div class="filters"><input id="productSearch" placeholder="Buscar por código, nome ou família"><select id="productTypeFilter"><option value="">Todos os tipos</option><option value="MATERIA_PRIMA">Matérias-primas</option><option value="PRODUTO_ACABADO">Produtos acabados</option></select></div><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Família</th><th>Qtd.</th><th data-cost-field>Custo</th><th>Venda</th><th>Ações</th></tr></thead><tbody id="productTable"></tbody></table></div></div>
+      </section>
 
-    <!-- DASHBOARD -->
-    <div id="mainDashboard" class="hidden min-h-screen flex">
-        
-        <!-- SIDEBAR ESQUERDO -->
-        <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col justify-between shadow-lg shrink-0">
-            <div>
-                <div class="p-6 border-b border-slate-700 flex items-center space-x-3">
-                    <i class="fa-solid fa-boxes-stacked text-3xl text-emerald-400"></i>
-                    <span class="text-lg font-bold tracking-wider text-emerald-400">BRCom <span class="text-white font-light">ERP</span></span>
-                </div>
-                <nav class="mt-6 px-4 space-y-2">
-                    <button onclick="switchTab('dashboardTab')" id="btn-dashboardTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg bg-emerald-600 text-white font-bold transition">
-                        <i class="fa-solid fa-chart-line text-lg"></i><span>Painel Geral</span>
-                    </button>
-                    <button onclick="switchTab('produtosTab')" id="btn-produtosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
-                        <i class="fa-solid fa-box text-lg"></i><span>Estoque de Produtos</span>
-                    </button>
-                    <button onclick="switchTab('historicoTab')" id="btn-historicoTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
-                        <i class="fa-solid fa-clock-rotate-left text-lg"></i><span>Registro de Estoque</span>
-                    </button>
-                    <button onclick="switchTab('pedidosTab')" id="btn-pedidosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition">
-                        <i class="fa-solid fa-calendar-check text-lg"></i><span>Pedidos Futuros</span>
-                    </button>
-                    <button onclick="switchTab('agendaTab')" id="btn-agendaTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
-                        <i class="fa-solid fa-calendar-days text-lg"></i><span>Agenda</span>
-                    </button>
-                    <button onclick="switchTab('clientesTab')" id="btn-clientesTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
-                        <i class="fa-solid fa-user-group text-lg"></i><span>Clientes</span>
-                    </button>
-                    <button onclick="switchTab('usuariosTab')" id="btn-usuariosTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
-                        <i class="fa-solid fa-users-gear text-lg"></i><span>Controle de Usuários</span>
-                    </button>
-                    <button onclick="switchTab('docsTab')" id="btn-docsTab" class="w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 transition hidden">
-                        <i class="fa-solid fa-code text-lg"></i><span>Documentação API</span>
-                    </button>
-                </nav>
-            </div>
-            <div class="p-4 border-t border-slate-700 bg-slate-900 flex flex-col space-y-2">
-                <span id="userNameDisplay" class="text-xs font-semibold text-emerald-400"></span>
-                <button onclick="logout()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold transition">Sair</button>
-            </div>
-        </aside>
+      <section id="estoqueTab" class="tab-content hidden"><div class="page-title"><div><h1>Movimentar estoque</h1><p>Entrada, saída, ajuste, perda e consumo</p></div></div><div class="card p-5 max-w-2xl"><form id="movementForm" class="form-grid"><label class="col-span-2">Produto<select id="mov_produto" required></select></label><label>Operação<select id="mov_tipo"><option value="ENTRADA">Entrada</option><option value="SAIDA">Saída</option><option value="AJUSTE">Ajuste</option><option value="PERDA">Perda</option><option value="CONSUMO_PRODUCAO">Consumo na produção</option></select></label><label>Quantidade<input id="mov_qtd" type="number" step="0.0001" min="0.0001" required></label><label id="adjustBalanceLabel" class="hidden">Novo saldo<input id="mov_saldo" type="number" step="0.0001" min="0"></label><label>Referência<input id="mov_ref" placeholder="OS, NF, recibo..."></label><label class="col-span-full">Motivo<textarea id="mov_motivo" required></textarea></label><div class="form-actions"><button class="btn-primary">Confirmar movimentação</button></div></form></div></section>
 
-        <!-- AREA DE CONTEÚDO -->
-        <main class="flex-grow p-8 overflow-y-auto" style="max-height: 100vh;">
-            
-            <!-- PAINEL GERAL -->
-            <div id="dashboardTab" class="tab-content space-y-8">
-                <div class="bg-slate-800 p-6 rounded-lg text-white shadow-md">
-                    <h1 class="text-2xl font-bold">Painel de Monitoramento Geral</h1>
-                </div>
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                    <div class="bg-white p-6 rounded-lg shadow border xl:col-span-1">
-                        <h2 class="text-lg font-bold text-red-600 mb-4"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Estoque Crítico</h2>
-                        <table class="w-full text-left border-collapse">
-                            <thead><tr class="bg-gray-50 border-b text-xs uppercase text-gray-500"><th class="p-2">Item</th><th class="p-2 text-center">Atual</th></tr></thead>
-                            <tbody id="criticalStockTableBody" class="text-sm"></tbody>
-                        </table>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border xl:col-span-2">
-                        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-gray-800">Calendário Mensal</h2><span id="calendarMonthLabel" class="font-bold text-emerald-600 uppercase"></span></div>
-                        <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs text-gray-500 border-b py-1"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div></div>
-                        <div id="calendarGrid" class="calendar-grid mt-2 bg-gray-200"></div>
-                    </div>
-                </div>
-            </div>
+      <section id="formulasTab" class="tab-content hidden"><div class="page-title"><div><h1>Fórmulas e custos</h1><p>Composição por produto acabado</p></div></div><div class="grid xl:grid-cols-2 gap-5"><div class="card p-5"><form id="formulaForm" class="space-y-4"><label>Produto acabado<select id="formula_produto" required></select></label><div class="grid sm:grid-cols-3 gap-3"><label>Mão de obra<input id="formula_mao" type="number" step="0.01" min="0" value="0"></label><label>Custos adicionais<input id="formula_adicional" type="number" step="0.01" min="0" value="0"></label><label>Markup (%)<input id="formula_markup" type="number" step="0.01" min="0" value="0"></label></div><div><div class="flex justify-between"><strong>Matérias-primas</strong><button type="button" id="addComponent" class="btn-secondary">+ Componente</button></div><div id="formulaComponents" class="space-y-2 mt-2"></div></div><label>Observações<textarea id="formula_obs"></textarea></label><button class="btn-primary w-full">Salvar e recalcular preço</button></form></div><div class="card p-5"><h2>Fórmulas cadastradas</h2><div id="formulaList" class="space-y-3 mt-3"></div></div></div></section>
 
-            <!-- PRODUTOS -->
-            <div id="produtosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow border h-fit">
-                    <h2 id="productFormTitle" class="text-lg font-bold text-gray-800 mb-4">Cadastrar Produto</h2>
-                    <form id="productForm" class="space-y-4">
-                        <input type="hidden" id="edit_product_id">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">NOME</label><input type="text" id="prod_nome" required class="w-full px-3 py-2 border rounded"></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">UNID</label><select id="prod_unidade" class="w-full px-3 py-2 border rounded"><option value="unidade">Unidade</option><option value="metro">Metro</option></select></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">MÍNIMO</label><input type="number" id="prod_minimo" required class="w-full px-3 py-2 border rounded"></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">QTD ATUAL</label><input type="number" id="prod_atual" required class="w-full px-3 py-2 border rounded"></div>
-                            <div class="cost-field"><label class="block text-xs font-bold text-gray-500 mb-1">CUSTO (R$)</label><input type="number" step="0.01" id="prod_custo" required class="w-full px-3 py-2 border rounded"></div>
-                        </div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">VENDA (R$)</label><input type="number" step="0.01" id="prod_venda" required class="w-full px-3 py-2 border rounded"></div>
-                        <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar Produto</button>
-                    </form>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Estoque de Produtos</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">ID</th><th class="p-3">Nome</th><th class="p-3">Qtd</th><th class="p-3 cost-field">Custo</th><th class="p-3">Venda</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="productTableBody" class="text-sm"></tbody></table></div>
-            </div>
+      <section id="orcamentosTab" class="tab-content hidden"><div class="page-title"><div><h1>Orçamentos</h1><p>Aprovação rápida pelo celular gera OS automaticamente</p></div><button class="btn-primary" data-toggle="quotePanel">+ Novo orçamento</button></div><div id="quotePanel" class="card p-5 mb-5 hidden"><form id="quoteForm" class="space-y-4"><div class="form-grid"><label>Cliente<select id="quote_cliente" required></select></label><label>Validade<input id="quote_validade" type="date"></label><label>Desconto (R$)<input id="quote_desconto" type="number" step="0.01" min="0" value="0"></label></div><div><div class="flex justify-between"><strong>Itens</strong><button type="button" id="addQuoteItem" class="btn-secondary">+ Item</button></div><div id="quoteItems" class="space-y-2 mt-2"></div></div><label>Observações<textarea id="quote_obs"></textarea></label><div class="form-actions"><button type="button" class="btn-secondary" data-toggle="quotePanel">Cancelar</button><button class="btn-primary">Criar orçamento</button></div></form></div><div id="quoteList" class="card-list"></div></section>
 
-            <!-- REGISTRO DE ESTOQUE (HISTÓRICO) -->
-            <div id="historicoTab" class="tab-content hidden">
-                <div class="bg-white p-6 rounded-lg shadow border">
-                    <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-gray-800">Histórico de Movimentações</h2><button onclick="clearAllHistory()" class="hist-admin-action hidden bg-red-600 text-white text-xs px-3 py-1.5 rounded font-bold">Limpar Tudo</button></div>
-                    <table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Horário</th><th class="p-3">Produto</th><th class="p-3">Operação</th><th class="p-3">Qtd</th><th class="p-3">Saldo</th><th class="p-3">Responsável</th><th class="p-3 text-right hist-admin-action hidden">Excluir</th></tr></thead><tbody id="historyTableBody" class="text-sm"></tbody></table>
-                </div>
-            </div>
+      <section id="osTab" class="tab-content hidden"><div class="page-title"><div><h1>Ordens de serviço</h1><p>Produção, consumo e entrada automática</p></div></div><div id="serviceOrderList" class="card-list"></div></section>
 
-            <!-- PEDIDOS FUTUROS -->
-            <div id="pedidosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow border h-fit">
-                    <h2 id="orderFormTitle" class="text-lg font-bold text-gray-800 mb-4">Lançar Pedido Futuro</h2>
-                    <form id="orderForm" class="space-y-4">
-                        <input type="hidden" id="edit_order_id">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">CLIENTE</label><input type="text" id="ord_cliente" required class="w-full px-3 py-2 border rounded"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">PRODUTO</label><input type="text" id="ord_produto" required class="w-full px-3 py-2 border rounded"></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">QTD</label><input type="number" id="ord_qtd" required class="w-full px-3 py-2 border rounded"></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">ENTREGA</label><input type="datetime-local" id="ord_data" required class="w-full px-3 py-2 border rounded"></div>
-                        </div>
-                        <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar Pedido</button>
-                    </form>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Pedidos Agendados</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Entrega</th><th class="p-3">Cliente</th><th class="p-3">Produto</th><th class="p-3">Qtd</th><th class="p-3">Status</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="orderTableBody" class="text-sm"></tbody></table></div>
-            </div>
+      <section id="vendasTab" class="tab-content hidden"><div class="page-title"><div><h1>Vendas e documentos</h1><p>Recibos e notas fiscais, separados e consolidados</p></div><button class="btn-primary" data-toggle="salePanel">+ Nova venda</button></div><div id="salePanel" class="card p-5 mb-5 hidden"><form id="saleForm" class="form-grid"><label>Cliente<select id="sale_cliente" required></select></label><label>Tipo de documento<select id="sale_tipo"><option value="RECIBO">Recibo</option><option value="NOTA_FISCAL">Nota fiscal</option></select></label><label>Número do documento<input id="sale_documento"></label><label>Link/arquivo da NF ou recibo<input id="sale_arquivo" placeholder="URL do arquivo"></label><label>Valor total<input id="sale_total" type="number" step="0.01" min="0.01" required></label><label>Data<input id="sale_data" type="date" required></label><label>Orçamento<select id="sale_orcamento"><option value="">Sem vínculo</option></select></label><label>Ordem de serviço<select id="sale_os"><option value="">Sem vínculo</option></select></label><label class="col-span-full">Observações<textarea id="sale_obs"></textarea></label><div class="form-actions"><button class="btn-primary">Registrar venda</button></div></form></div><div class="card p-4"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Número</th><th>Cliente</th><th>Documento</th><th>Nº documento</th><th>Valor</th><th>Arquivo</th></tr></thead><tbody id="saleTable"></tbody></table></div></div></section>
 
-            <!-- AGENDA -->
-            <div id="agendaTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow border h-fit">
-                    <h2 id="agendaFormTitle" class="text-lg font-bold text-gray-800 mb-4">Novo Compromisso</h2>
-                    <form id="agendaForm" class="space-y-4">
-                        <input type="hidden" id="edit_agenda_id">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">COMPROMISSO</label><input type="text" id="ag_titulo" required class="w-full px-3 py-2 border rounded"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">DESCRIÇÃO</label><textarea id="ag_desc" class="w-full px-3 py-2 border rounded" rows="2"></textarea></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">DATA/HORA</label><input type="datetime-local" id="ag_data" required class="w-full px-3 py-2 border rounded"></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">LOCAL</label><input type="text" id="ag_local" class="w-full px-3 py-2 border rounded"></div>
-                        </div>
-                        <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar na Agenda</button>
-                    </form>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Compromissos Cadastrados</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Horário</th><th class="p-3">Compromisso</th><th class="p-3">Local</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="agendaTableBody" class="text-sm"></tbody></table></div>
-            </div>
+      <section id="relatoriosTab" class="tab-content hidden"><div class="page-title"><div><h1>Relatórios</h1><p>Vendas, custos, clientes e estoques</p></div><button id="printReport" class="btn-secondary"><i class="fa-solid fa-print"></i> Imprimir</button></div><div id="reportCards" class="stats-grid"></div><div class="card p-5 mt-5"><h2>Vendas por documento</h2><div id="salesReport" class="grid sm:grid-cols-2 gap-3 mt-3"></div></div><div class="card p-5 mt-5"><h2>Posição de produtos</h2><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Família</th><th>Quantidade</th><th>Mínimo</th></tr></thead><tbody id="reportProductTable"></tbody></table></div></div></section>
 
-            <!-- CLIENTES -->
-            <div id="clientesTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow border h-fit">
-                    <h2 id="clientFormTitle" class="text-lg font-bold text-gray-800 mb-4">Cadastrar Cliente</h2>
-                    <form id="clientForm" class="space-y-4">
-                        <input type="hidden" id="edit_client_id">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">NOME DO CLIENTE</label><input type="text" id="cli_nome" required class="w-full px-3 py-2 border rounded"></div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">DOCUMENTO (CPF/CNPJ)</label><input type="text" id="cli_doc" class="w-full px-3 py-2 border rounded"></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">TELEFONE</label><input type="text" id="cli_tel" class="w-full px-3 py-2 border rounded"></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">EMAIL</label><input type="email" id="cli_email" class="w-full px-3 py-2 border rounded"></div>
-                        </div>
-                        <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar Cliente</button>
-                    </form>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Carteira de Clientes</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Nome</th><th class="p-3">Documento</th><th class="p-3">Telefone</th><th class="p-3">Email</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="clientTableBody" class="text-sm"></tbody></table></div>
-            </div>
+      <section id="clientesTab" class="tab-content hidden"><div class="page-title"><div><h1>Clientes</h1></div><button class="btn-primary" data-toggle="clientPanel">+ Novo cliente</button></div><div id="clientPanel" class="card p-5 mb-5 hidden"><form id="clientForm" class="form-grid"><input id="client_id" type="hidden"><label class="col-span-2">Nome<input id="client_nome" required></label><label>CPF/CNPJ<input id="client_documento"></label><label>Telefone<input id="client_telefone"></label><label>Email<input id="client_email" type="email"></label><div class="form-actions"><button class="btn-primary">Salvar cliente</button></div></form></div><div class="card p-4"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Documento</th><th>Telefone</th><th>Email</th><th>Ações</th></tr></thead><tbody id="clientTable"></tbody></table></div></div></section>
 
-            <!-- CONTROLE DE USUÁRIOS -->
-            <div id="usuariosTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow border h-fit">
-                    <h2 id="userFormTitle" class="text-lg font-bold text-gray-800 mb-4">Adicionar Usuário</h2>
-                    <form id="userForm" class="space-y-4">
-                        <input type="hidden" id="edit_user_id">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">NOME</label><input type="text" id="u_nome" required class="w-full px-3 py-2 border rounded"></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">LOGIN</label><input type="text" id="u_login" required class="w-full px-3 py-2 border rounded"></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">SENHA</label><input type="password" id="u_senha" minlength="12" required class="w-full px-3 py-2 border rounded" placeholder="Mínimo de 12 caracteres"></div>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded border text-xs space-y-1">
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_usuarios"><span>Admin</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_custos"><span>Ver Custos</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_estoque"><span>Mover Estoque</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_clientes"><span>Clientes</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_agenda"><span>Agenda</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_docs"><span>Docs API</span></label>
-                            <label class="flex items-center space-x-2"><input type="checkbox" id="perm_historico"><span>Gerenciar Histórico</span></label>
-                        </div>
-                        <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded">Salvar Usuário</button>
-                    </form>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow border lg:col-span-2"><h2 class="text-lg font-bold text-gray-800 mb-4">Usuários do Sistema</h2><table class="w-full text-left border-collapse"><thead class="bg-gray-50 border-b text-xs uppercase"><tr><th class="p-3">Nome</th><th class="p-3">Login</th><th class="p-3">Senha</th><th class="p-3 text-right">Ações</th></tr></thead><tbody id="userTableBody" class="text-sm"></tbody></table></div>
-            </div>
+      <section id="agendaTab" class="tab-content hidden"><div class="page-title"><div><h1>Agenda</h1></div><button class="btn-primary" data-toggle="agendaPanel">+ Compromisso</button></div><div id="agendaPanel" class="card p-5 mb-5 hidden"><form id="agendaForm" class="form-grid"><input id="agenda_id" type="hidden"><label>Compromisso<input id="agenda_titulo" required></label><label>Data e hora<input id="agenda_data" type="datetime-local" required></label><label>Local<input id="agenda_local"></label><label class="col-span-full">Descrição<textarea id="agenda_desc"></textarea></label><div class="form-actions"><button class="btn-primary">Salvar compromisso</button></div></form></div><div id="agendaList" class="card-list"></div></section>
 
-            <!-- DOCUMENTAÇÃO API -->
-            <div id="docsTab" class="tab-content hidden w-full h-full">
-                <div class="bg-white rounded-lg shadow border w-full h-[82vh] overflow-hidden">
-                    <iframe src="/docs" class="w-full h-full border-none"></iframe>
-                </div>
-            </div>
+      <section id="pedidosTab" class="tab-content hidden"><div class="page-title"><div><h1>Pedidos futuros</h1></div><button class="btn-primary" data-toggle="orderPanel">+ Pedido</button></div><div id="orderPanel" class="card p-5 mb-5 hidden"><form id="orderForm" class="form-grid"><input id="order_id" type="hidden"><label>Cliente<input id="order_cliente" required></label><label>Produto<input id="order_produto" required></label><label>Quantidade<input id="order_qtd" type="number" step="0.0001" required></label><label>Entrega<input id="order_data" type="datetime-local" required></label><div class="form-actions"><button class="btn-primary">Salvar pedido</button></div></form></div><div id="orderList" class="card-list"></div></section>
 
-        </main>
-    </div>
+      <section id="historicoTab" class="tab-content hidden"><div class="page-title"><div><h1>Auditoria de estoque</h1><p>Alterações registradas por usuário</p></div></div><div class="card p-4"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Produto</th><th>Operação</th><th>Quantidade</th><th>Anterior</th><th>Saldo</th><th>Motivo</th><th>Responsável</th><th data-admin>Excluir</th></tr></thead><tbody id="historyTable"></tbody></table></div></div></section>
 
-    <script>
-        let USUARIO_LOGADO = null;
-        let LISTA_COMPROMISSOS = [];
-        let LISTA_PRODUTOS = [];
-        let LISTA_CLIENTES = [];
-        let LISTA_PEDIDOS = [];
-        let LISTA_USUARIOS = [];
-
-        function escapeHtml(value) {
-            const el = document.createElement("div");
-            el.textContent = value == null ? "" : String(value);
-            return el.innerHTML;
-        }
-
-        document.getElementById("loginForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const payload = {
-                usuario_login: document.getElementById("login_user").value,
-                senha: document.getElementById("login_pass").value
-            };
-            const response = await fetch("/api/login", {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-            });
-            if (response.ok) {
-                const data = await response.json();
-                USUARIO_LOGADO = data.usuario;
-                entrarNoPainel();
-            } else { alert("Login ou senha incorretos."); }
-        });
-
-        function entrarNoPainel() {
-            document.getElementById("loginScreen").classList.add("hidden");
-            document.getElementById("mainDashboard").classList.remove("hidden");
-            document.getElementById("userNameDisplay").innerHTML = `<i class="fa-solid fa-circle-user mr-1 text-emerald-400"></i> ${escapeHtml(USUARIO_LOGADO.nome)}`;
-            applyPermissions();
-            loadAllData();
-        }
-
-        async function logout() {
-            await fetch("/api/logout", { method: "POST" });
-            USUARIO_LOGADO = null;
-            document.getElementById("loginScreen").classList.remove("hidden");
-            document.getElementById("mainDashboard").classList.add("hidden");
-            document.getElementById("loginForm").reset();
-        }
-
-        function applyPermissions() {
-            if (USUARIO_LOGADO.pode_gerenciar_usuarios) document.getElementById("btn-usuariosTab").classList.remove("hidden");
-            else document.getElementById("btn-usuariosTab").classList.add("hidden");
-
-            if (USUARIO_LOGADO.pode_acessar_docs) document.getElementById("btn-docsTab").classList.remove("hidden");
-            else document.getElementById("btn-docsTab").classList.add("hidden");
-
-            if (USUARIO_LOGADO.pode_acessar_agenda) document.getElementById("btn-agendaTab").classList.remove("hidden");
-            else document.getElementById("btn-agendaTab").classList.add("hidden");
-
-            if (USUARIO_LOGADO.pode_gerenciar_clientes) document.getElementById("btn-clientesTab").classList.remove("hidden");
-            else document.getElementById("btn-clientesTab").classList.add("hidden");
-
-            document.querySelectorAll(".cost-field").forEach(el => {
-                if (USUARIO_LOGADO.pode_alterar_custos) el.classList.remove("hidden");
-                else el.classList.add("hidden");
-            });
-
-            document.querySelectorAll(".hist-admin-action").forEach(el => {
-                if (USUARIO_LOGADO.pode_gerenciar_historico) el.classList.remove("hidden");
-                else el.classList.add("hidden");
-            });
-        }
-
-        function loadAllData() {
-            loadProducts();
-            loadHistory();
-            loadOrders();
-            if (USUARIO_LOGADO.pode_gerenciar_clientes) loadClients();
-            if (USUARIO_LOGADO.pode_acessar_agenda) loadAgenda();
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
-            document.getElementById(tabId).classList.remove("hidden");
-            document.querySelectorAll("[id^='btn-']").forEach(btn => {
-                btn.className = "w-full flex items-center space-x-3 py-3 px-4 rounded-lg hover:bg-slate-700 hover:text-white transition";
-            });
-            document.getElementById("btn-" + tabId).className = "w-full flex items-center space-x-3 py-3 px-4 rounded-lg bg-emerald-600 text-white font-bold transition";
-        }
-
-        function formatDate(iso) { return iso ? new Date(iso).toLocaleString('pt-BR') : "-"; }
-
-        // PRODUTOS
-        async function loadProducts() {
-            const res = await fetch("/produtos/");
-            const products = await res.json();
-            LISTA_PRODUTOS = products;
-            const tbody = document.getElementById("productTableBody");
-            tbody.innerHTML = "";
-            const critBody = document.getElementById("criticalStockTableBody");
-            critBody.innerHTML = "";
-            
-            products.forEach(p => {
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50 text-slate-700">
-                        <td class="p-3 font-semibold text-gray-400">#${p.id}</td>
-                        <td class="p-3 font-bold">${escapeHtml(p.nome)}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.quantidade_atual <= p.estoque_minimo ? 'bg-red-100 text-red-700 font-bold' : 'bg-emerald-100 text-emerald-800'}">${p.quantidade_atual} ${escapeHtml(p.unidade_medida)}</span></td>
-                        <td class="p-3 cost-field ${!USUARIO_LOGADO.pode_alterar_custos?'hidden':''}">R$ ${(p.preco_custo ?? 0).toFixed(2)}</td>
-                        <td class="p-3 font-semibold text-emerald-600">R$ ${p.preco_venda.toFixed(2)}</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button onclick="editProduct(${p.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteProduct(${p.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-                if(p.quantidade_atual <= p.estoque_minimo) {
-                    critBody.innerHTML += `<tr class="border-b"><td class="p-2.5 font-bold">${escapeHtml(p.nome)}</td><td class="p-2.5 text-center text-red-600 font-bold">${p.quantidade_atual}</td></tr>`;
-                }
-            });
-        }
-
-        document.getElementById("productForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const id = document.getElementById("edit_product_id").value;
-            const payload = {
-                nome: document.getElementById("prod_nome").value, unidade_medida: document.getElementById("prod_unidade").value,
-                quantidade_atual: parseFloat(document.getElementById("prod_atual").value), estoque_minimo: parseFloat(document.getElementById("prod_minimo").value),
-                preco_custo: parseFloat(document.getElementById("prod_custo").value || 0), preco_venda: parseFloat(document.getElementById("prod_venda").value)
-            };
-            const url = id ? `/produtos/${id}` : "/produtos/";
-            const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if (res.ok) { resetProductForm(); loadProducts(); loadHistory(); }
-        });
-
-        function editProduct(id) {
-            const p = LISTA_PRODUTOS.find(item => item.id === id);
-            if (!p) return;
-            document.getElementById("edit_product_id").value = p.id;
-            document.getElementById("prod_nome").value = p.nome;
-            document.getElementById("prod_unidade").value = p.unidade_medida;
-            document.getElementById("prod_minimo").value = p.estoque_minimo;
-            document.getElementById("prod_atual").value = p.quantidade_atual;
-            document.getElementById("prod_custo").value = p.preco_custo;
-            document.getElementById("prod_venda").value = p.preco_venda;
-            document.getElementById("productFormTitle").innerText = "Editar Produto";
-        }
-        
-        function resetProductForm() { document.getElementById("productForm").reset(); document.getElementById("edit_product_id").value = ""; document.getElementById("productFormTitle").innerText = "Cadastrar Produto"; }
-        async function deleteProduct(id) { if(confirm("Excluir item?")) { await fetch(`/produtos/${id}`, { method: "DELETE" }); loadProducts(); loadHistory(); } }
-
-        // HISTÓRICO
-        async function loadHistory() {
-            const res = await fetch("/historico/");
-            const history = await res.json();
-            const tbody = document.getElementById("historyTableBody");
-            tbody.innerHTML = "";
-            history.forEach(h => {
-                tbody.innerHTML += `
-                    <tr class="border-b text-slate-700 hover:bg-gray-50 transition">
-                        <td class="p-3 text-gray-400">${formatDate(h.data_hora)}</td>
-                        <td class="p-3 font-bold">${escapeHtml(h.produto_nome)}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${escapeHtml(h.tipo_movimentacao)}</span></td>
-                        <td class="p-3 font-semibold">${h.quantidade}</td>
-                        <td class="p-3 text-gray-400">${h.saldo_apos}</td>
-                        <td class="p-3 text-slate-600">${escapeHtml(h.usuario_responsavel)}</td>
-                        <td class="p-3 text-right hist-admin-action ${!USUARIO_LOGADO.pode_gerenciar_historico?'hidden':''}"><button onclick="deleteHistoryRow(${h.id})" class="text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></td>
-                    </tr>
-                `;
-            });
-        }
-        async function deleteHistoryRow(id) { if(confirm("Excluir este registro da auditoria?")) { await fetch(`/historico/${id}`, { method: "DELETE" }); loadHistory(); } }
-        async function clearAllHistory() { if(confirm("Limpar todo o histórico?")) { await fetch("/historico/", { method: "DELETE" }); loadHistory(); } }
-
-        // CLIENTES
-        async function loadClients() {
-            const res = await fetch("/clientes/");
-            const clients = await res.json();
-            LISTA_CLIENTES = clients;
-            const tbody = document.getElementById("clientTableBody");
-            tbody.innerHTML = "";
-            clients.forEach(c => {
-                tbody.innerHTML += `
-                    <tr class="border-b text-slate-700 hover:bg-gray-50">
-                        <td class="p-3 font-bold">${escapeHtml(c.nome)}</td>
-                        <td class="p-3">${escapeHtml(c.documento || '-')}</td>
-                        <td class="p-3">${escapeHtml(c.telefone || '-')}</td>
-                        <td class="p-3">${escapeHtml(c.email || '-')}</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button onclick="editClient(${c.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteClient(${c.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById("clientForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const id = document.getElementById("edit_client_id").value;
-            const payload = { nome: document.getElementById("cli_nome").value, documento: document.getElementById("cli_doc").value || null, telefone: document.getElementById("cli_tel").value || null, email: document.getElementById("cli_email").value || null };
-            const url = id ? `/clientes/${id}` : "/clientes/";
-            const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if (res.ok) { resetClientForm(); loadClients(); }
-        });
-
-        function editClient(id) {
-            const c = LISTA_CLIENTES.find(item => item.id === id);
-            if (!c) return;
-            document.getElementById("edit_client_id").value = c.id;
-            document.getElementById("cli_nome").value = c.nome;
-            document.getElementById("cli_doc").value = c.documento || "";
-            document.getElementById("cli_tel").value = c.telefone || "";
-            document.getElementById("cli_email").value = c.email || "";
-            document.getElementById("clientFormTitle").innerText = "Editar Cliente";
-        }
-        function resetClientForm() { document.getElementById("clientForm").reset(); document.getElementById("edit_client_id").value = ""; document.getElementById("clientFormTitle").innerText = "Cadastrar Cliente"; }
-        async function deleteClient(id) { if(confirm("Excluir cliente?")) { await fetch(`/clientes/${id}`, { method: "DELETE" }); loadClients(); } }
-
-        // PEDIDOS
-        async function loadOrders() {
-            const res = await fetch("/pedidos/");
-            const orders = await res.json();
-            LISTA_PEDIDOS = orders;
-            const tbody = document.getElementById("orderTableBody");
-            tbody.innerHTML = "";
-            orders.forEach(o => {
-                tbody.innerHTML += `
-                    <tr class="border-b text-slate-700 hover:bg-gray-50">
-                        <td class="p-3">${formatDate(o.data_entrega)}</td>
-                        <td class="p-3 font-bold">${escapeHtml(o.cliente_nome)}</td>
-                        <td class="p-3">${escapeHtml(o.produto_nome)}</td>
-                        <td class="p-3 font-semibold">${o.quantidade}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-amber-100">${escapeHtml(o.status)}</span></td>
-                        <td class="p-3 text-right space-x-1">
-                            <button onclick="changeOrderStatus(${o.id}, 'Entregue')" class="text-xs bg-emerald-500 text-white px-1.5 py-0.5 rounded">OK</button>
-                            <button onclick="editOrder(${o.id})" class="text-blue-500 ml-2"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteOrder(${o.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById("orderForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const id = document.getElementById("edit_order_id").value;
-            const payload = { cliente_nome: document.getElementById("ord_cliente").value, produto_nome: document.getElementById("ord_produto").value, quantidade: parseFloat(document.getElementById("ord_qtd").value), data_entrega: new Date(document.getElementById("ord_data").value).toISOString() };
-            const url = id ? `/pedidos/${id}` : "/pedidos/";
-            const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if(res.ok) { resetOrderForm(); loadOrders(); }
-        });
-
-        function editOrder(id) {
-            const o = LISTA_PEDIDOS.find(item => item.id === id);
-            if (!o) return;
-            document.getElementById("edit_order_id").value = o.id;
-            document.getElementById("ord_cliente").value = o.cliente_nome;
-            document.getElementById("ord_produto").value = o.produto_nome;
-            document.getElementById("ord_qtd").value = o.quantidade;
-            document.getElementById("ord_data").value = new Date(o.data_entrega).toISOString().slice(0, 16);
-            document.getElementById("orderFormTitle").innerText = "Editar Pedido";
-        }
-        function resetOrderForm() { document.getElementById("orderForm").reset(); document.getElementById("edit_order_id").value = ""; document.getElementById("orderFormTitle").innerText = "Lançar Pedido Futuro"; }
-        async function changeOrderStatus(id, st) { await fetch(`/pedidos/${id}/status?status_novo=${st}`, { method: "PUT" }); loadOrders(); }
-        async function deleteOrder(id) { if(confirm("Excluir pedido?")) { await fetch(`/pedidos/${id}`, { method: "DELETE" }); loadOrders(); } }
-
-        // AGENDA
-        async function loadAgenda() {
-            const res = await fetch("/agenda/");
-            LISTA_COMPROMISSOS = await res.json();
-            const tbody = document.getElementById("agendaTableBody");
-            tbody.innerHTML = "";
-            LISTA_COMPROMISSOS.forEach(a => {
-                tbody.innerHTML += `
-                    <tr class="border-b text-slate-700">
-                        <td class="p-3">${formatDate(a.data_hora)}</td>
-                        <td class="p-3"><strong>${escapeHtml(a.titulo)}</strong><br><small class="text-gray-400">${escapeHtml(a.descricao||"")}</small></td>
-                        <td class="p-3 text-gray-500">${escapeHtml(a.local||"-")}</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button onclick="editAgenda(${a.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteAgenda(${a.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-            renderCalendar();
-        }
-
-        document.getElementById("agendaForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const id = document.getElementById("edit_agenda_id").value;
-            const payload = { titulo: document.getElementById("ag_titulo").value, descricao: document.getElementById("ag_desc").value||null, data_hora: new Date(document.getElementById("ag_data").value).toISOString(), local: document.getElementById("ag_local").value||null };
-            const res = await fetch(id ? `/agenda/${id}` : "/agenda/", { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if(res.ok) { resetAgendaForm(); loadAgenda(); }
-        });
-
-        function editAgenda(id) {
-            const a = LISTA_COMPROMISSOS.find(item => item.id === id);
-            if (!a) return;
-            document.getElementById("edit_agenda_id").value = a.id;
-            document.getElementById("ag_titulo").value = a.titulo;
-            document.getElementById("ag_desc").value = a.descricao||"";
-            document.getElementById("ag_local").value = a.local||"";
-            document.getElementById("ag_data").value = new Date(a.data_hora).toISOString().slice(0, 16);
-            document.getElementById("agendaFormTitle").innerText = "Editar Compromisso";
-        }
-        function resetAgendaForm() { document.getElementById("agendaForm").reset(); document.getElementById("edit_agenda_id").value = ""; document.getElementById("agendaFormTitle").innerText = "Novo Compromisso"; }
-        async function deleteAgenda(id) { if(confirm("Excluir compromisso?")) { await fetch(`/agenda/${id}`, { method: "DELETE" }); loadAgenda(); } }
-
-        function renderCalendar() {
-            const grid = document.getElementById("calendarGrid");
-            grid.innerHTML = "";
-            const today = new Date();
-            document.getElementById("calendarMonthLabel").innerText = today.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
-            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-
-            for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="bg-gray-50/50 calendar-day-cell"></div>`;
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dayComps = LISTA_COMPROMISSOS.filter(c => new Date(c.data_hora).getDate() === d && new Date(c.data_hora).getMonth() === today.getMonth());
-                let txt = ""; dayComps.forEach(c => txt += `<div class="text-[9px] bg-emerald-100 text-emerald-800 p-0.5 rounded truncate mt-1">${escapeHtml(c.titulo)}</div>`);
-                grid.innerHTML += `<div class="bg-white p-1 border flex flex-col justify-between calendar-day-cell"><span class="text-xs text-gray-400 font-bold">${d}</span><div class="overflow-y-auto">${txt}</div></div>`;
-            }
-        }
-
-        // USUÁRIOS
-        async function loadUsers() {
-            const res = await fetch("/usuarios/");
-            const users = await res.json();
-            LISTA_USUARIOS = users;
-            const tbody = document.getElementById("userTableBody");
-            tbody.innerHTML = "";
-            users.forEach(u => {
-                tbody.innerHTML += `
-                    <tr class="border-b text-slate-700">
-                        <td class="p-3 font-bold">${escapeHtml(u.nome)}</td>
-                        <td class="p-3 text-gray-500">${escapeHtml(u.usuario_login)}</td>
-                        <td class="p-3 text-xs text-emerald-600"><i class="fa-solid fa-lock mr-1"></i>Protegida</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button onclick="editUser(${u.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteUser(${u.id})" class="text-red-500 ${u.usuario_login==='eduardo'?'hidden':''}"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById("userForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const id = document.getElementById("edit_user_id").value;
-            const payload = {
-                nome: document.getElementById("u_nome").value,
-                usuario_login: document.getElementById("u_login").value,
-                pode_gerenciar_usuarios: document.getElementById("perm_usuarios").checked,
-                pode_alterar_custos: document.getElementById("perm_custos").checked,
-                pode_movimentar_estoque: document.getElementById("perm_estoque").checked,
-                pode_gerenciar_clientes: document.getElementById("perm_clientes").checked,
-                pode_acessar_agenda: document.getElementById("perm_agenda").checked,
-                pode_acessar_docs: document.getElementById("perm_docs").checked,
-                pode_gerenciar_historico: document.getElementById("perm_historico").checked
-            };
-            const senha = document.getElementById("u_senha").value;
-            if (senha) payload.senha = senha;
-            const url = id ? `/usuarios/${id}` : "/usuarios/";
-            const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if(res.ok) { resetUserForm(); loadUsers(); }
-        });
-
-        function editUser(id) {
-            const u = LISTA_USUARIOS.find(item => item.id === id);
-            if (!u) return;
-            document.getElementById("edit_user_id").value = u.id;
-            document.getElementById("u_nome").value = u.nome;
-            document.getElementById("u_login").value = u.usuario_login;
-            document.getElementById("u_senha").value = "";
-            document.getElementById("u_senha").required = false;
-            document.getElementById("u_senha").placeholder = "Deixe vazio para manter a senha";
-            document.getElementById("perm_usuarios").checked = u.pode_gerenciar_usuarios;
-            document.getElementById("perm_custos").checked = u.pode_alterar_custos;
-            document.getElementById("perm_estoque").checked = u.pode_movimentar_estoque;
-            document.getElementById("perm_clientes").checked = u.pode_gerenciar_clientes;
-            document.getElementById("perm_agenda").checked = u.pode_acessar_agenda;
-            document.getElementById("perm_docs").checked = u.pode_acessar_docs;
-            document.getElementById("perm_historico").checked = u.pode_gerenciar_historico;
-            document.getElementById("userFormTitle").innerText = "Editar Usuário";
-        }
-        function resetUserForm() { document.getElementById("userForm").reset(); document.getElementById("edit_user_id").value = ""; document.getElementById("u_senha").required = true; document.getElementById("u_senha").placeholder = "Mínimo de 12 caracteres"; document.getElementById("userFormTitle").innerText = "Adicionar Usuário"; }
-        async function deleteUser(id) { if(confirm("Excluir usuário?")) { await fetch(`/usuarios/${id}`, { method: "DELETE" }); loadUsers(); } }
-        window.addEventListener("DOMContentLoaded", async () => {
-            const response = await fetch("/api/me");
-            if (response.ok) {
-                USUARIO_LOGADO = await response.json();
-                entrarNoPainel();
-            }
-        });
-    </script>
+      <section id="usuariosTab" class="tab-content hidden"><div class="page-title"><div><h1>Usuários e permissões</h1></div><button class="btn-primary" data-toggle="userPanel">+ Usuário</button></div><div id="userPanel" class="card p-5 mb-5 hidden"><form id="userForm" class="form-grid"><input id="user_id" type="hidden"><label>Nome<input id="user_nome" required></label><label>Login<input id="user_login" required></label><label>Senha<input id="user_senha" type="password" minlength="12" placeholder="Mínimo 12 caracteres"></label><fieldset class="col-span-full permissions"><legend>Permissões</legend><label><input type="checkbox" id="perm_admin"> Administrador</label><label><input type="checkbox" id="perm_custos"> Custos/orçamentos</label><label><input type="checkbox" id="perm_estoque"> Estoque/produção</label><label><input type="checkbox" id="perm_clientes"> Clientes</label><label><input type="checkbox" id="perm_agenda"> Agenda</label><label><input type="checkbox" id="perm_docs"> API</label><label><input type="checkbox" id="perm_historico"> Histórico</label></fieldset><div class="form-actions"><button class="btn-primary">Salvar usuário</button></div></form></div><div id="userList" class="card-list"></div></section>
+    </main>
+  </div>
+  <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
