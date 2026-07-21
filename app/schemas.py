@@ -1,6 +1,12 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class OrmModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UsuarioBase(BaseModel):
     nome: str
@@ -13,13 +19,18 @@ class UsuarioBase(BaseModel):
     pode_acessar_docs: bool = False
     pode_gerenciar_historico: bool = False
 
-class UsuarioCreate(UsuarioBase):
-    senha: str
 
-class UsuarioResponse(UsuarioBase):
+class UsuarioCreate(UsuarioBase):
+    senha: str = Field(min_length=12, max_length=128)
+
+
+class UsuarioUpdate(UsuarioBase):
+    senha: Optional[str] = Field(default=None, min_length=12, max_length=128)
+
+
+class UsuarioResponse(UsuarioBase, OrmModel):
     id: int
-    class Config:
-        from_attributes = True
+
 
 class ProdutoBase(BaseModel):
     nome: str
@@ -29,13 +40,14 @@ class ProdutoBase(BaseModel):
     preco_custo: float
     preco_venda: float
 
+
 class ProdutoCreate(ProdutoBase):
     pass
 
-class ProdutoResponse(ProdutoBase):
+
+class ProdutoResponse(ProdutoBase, OrmModel):
     id: int
-    class Config:
-        from_attributes = True
+
 
 class ClienteBase(BaseModel):
     nome: str
@@ -43,15 +55,16 @@ class ClienteBase(BaseModel):
     telefone: Optional[str] = None
     email: Optional[str] = None
 
+
 class ClienteCreate(ClienteBase):
     pass
 
-class ClienteResponse(ClienteBase):
-    id: int
-    class Config:
-        from_attributes = True
 
-class HistoricoResponse(BaseModel):
+class ClienteResponse(ClienteBase, OrmModel):
+    id: int
+
+
+class HistoricoResponse(OrmModel):
     id: int
     produto_nome: str
     tipo_movimentacao: str
@@ -59,8 +72,7 @@ class HistoricoResponse(BaseModel):
     saldo_apos: float
     usuario_responsavel: str
     data_hora: datetime
-    class Config:
-        from_attributes = True
+
 
 class CompromissoBase(BaseModel):
     titulo: str
@@ -68,13 +80,14 @@ class CompromissoBase(BaseModel):
     data_hora: datetime
     local: Optional[str] = None
 
+
 class CompromissoCreate(CompromissoBase):
     pass
 
-class CompromissoResponse(CompromissoBase):
+
+class CompromissoResponse(CompromissoBase, OrmModel):
     id: int
-    class Config:
-        from_attributes = True
+
 
 class PedidoFuturoBase(BaseModel):
     cliente_nome: str
@@ -83,14 +96,20 @@ class PedidoFuturoBase(BaseModel):
     data_entrega: datetime
     status: str = "Pendente"
 
+
 class PedidoFuturoCreate(PedidoFuturoBase):
     pass
 
-class PedidoFuturoResponse(PedidoFuturoBase):
+
+class PedidoFuturoResponse(PedidoFuturoBase, OrmModel):
     id: int
-    class Config:
-        from_attributes = True
+
 
 class LoginRequest(BaseModel):
     usuario_login: str
     senha: str
+
+
+class LoginResponse(BaseModel):
+    status: str
+    usuario: UsuarioResponse

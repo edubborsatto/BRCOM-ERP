@@ -195,7 +195,7 @@
                         <div><label class="block text-xs font-bold text-gray-500 mb-1">NOME</label><input type="text" id="u_nome" required class="w-full px-3 py-2 border rounded"></div>
                         <div class="grid grid-cols-2 gap-4">
                             <div><label class="block text-xs font-bold text-gray-500 mb-1">LOGIN</label><input type="text" id="u_login" required class="w-full px-3 py-2 border rounded"></div>
-                            <div><label class="block text-xs font-bold text-gray-500 mb-1">SENHA</label><input type="text" id="u_senha" required class="w-full px-3 py-2 border rounded"></div>
+                            <div><label class="block text-xs font-bold text-gray-500 mb-1">SENHA</label><input type="password" id="u_senha" minlength="12" required class="w-full px-3 py-2 border rounded" placeholder="Mínimo de 12 caracteres"></div>
                         </div>
                         <div class="bg-gray-50 p-3 rounded border text-xs space-y-1">
                             <label class="flex items-center space-x-2"><input type="checkbox" id="perm_usuarios"><span>Admin</span></label>
@@ -225,6 +225,16 @@
     <script>
         let USUARIO_LOGADO = null;
         let LISTA_COMPROMISSOS = [];
+        let LISTA_PRODUTOS = [];
+        let LISTA_CLIENTES = [];
+        let LISTA_PEDIDOS = [];
+        let LISTA_USUARIOS = [];
+
+        function escapeHtml(value) {
+            const el = document.createElement("div");
+            el.textContent = value == null ? "" : String(value);
+            return el.innerHTML;
+        }
 
         document.getElementById("loginForm").addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -245,12 +255,13 @@
         function entrarNoPainel() {
             document.getElementById("loginScreen").classList.add("hidden");
             document.getElementById("mainDashboard").classList.remove("hidden");
-            document.getElementById("userNameDisplay").innerHTML = `<i class="fa-solid fa-circle-user mr-1 text-emerald-400"></i> ${USUARIO_LOGADO.nome}`;
+            document.getElementById("userNameDisplay").innerHTML = `<i class="fa-solid fa-circle-user mr-1 text-emerald-400"></i> ${escapeHtml(USUARIO_LOGADO.nome)}`;
             applyPermissions();
             loadAllData();
         }
 
-        function logout() {
+        async function logout() {
+            await fetch("/api/logout", { method: "POST" });
             USUARIO_LOGADO = null;
             document.getElementById("loginScreen").classList.remove("hidden");
             document.getElementById("mainDashboard").classList.add("hidden");
@@ -281,7 +292,13 @@
             });
         }
 
-        function loadAllData() { loadProducts(); loadHistory(); loadOrders(); loadClients(); loadAgenda(); }
+        function loadAllData() {
+            loadProducts();
+            loadHistory();
+            loadOrders();
+            if (USUARIO_LOGADO.pode_gerenciar_clientes) loadClients();
+            if (USUARIO_LOGADO.pode_acessar_agenda) loadAgenda();
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
@@ -298,6 +315,7 @@
         async function loadProducts() {
             const res = await fetch("/produtos/");
             const products = await res.json();
+            LISTA_PRODUTOS = products;
             const tbody = document.getElementById("productTableBody");
             tbody.innerHTML = "";
             const critBody = document.getElementById("criticalStockTableBody");
@@ -307,18 +325,18 @@
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-gray-50 text-slate-700">
                         <td class="p-3 font-semibold text-gray-400">#${p.id}</td>
-                        <td class="p-3 font-bold">${p.nome}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.quantidade_atual <= p.estoque_minimo ? 'bg-red-100 text-red-700 font-bold' : 'bg-emerald-100 text-emerald-800'}">${p.quantidade_atual} ${p.unidade_medida}</span></td>
-                        <td class="p-3 cost-field ${!USUARIO_LOGADO.pode_alterar_custos?'hidden':''}">R$ ${p.preco_custo.toFixed(2)}</td>
+                        <td class="p-3 font-bold">${escapeHtml(p.nome)}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.quantidade_atual <= p.estoque_minimo ? 'bg-red-100 text-red-700 font-bold' : 'bg-emerald-100 text-emerald-800'}">${p.quantidade_atual} ${escapeHtml(p.unidade_medida)}</span></td>
+                        <td class="p-3 cost-field ${!USUARIO_LOGADO.pode_alterar_custos?'hidden':''}">R$ ${(p.preco_custo ?? 0).toFixed(2)}</td>
                         <td class="p-3 font-semibold text-emerald-600">R$ ${p.preco_venda.toFixed(2)}</td>
                         <td class="p-3 text-right space-x-2">
-                            <button onclick="editProduct(${JSON.stringify(p).replace(/"/g, '&quot;')})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editProduct(${p.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteProduct(${p.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
                 `;
                 if(p.quantidade_atual <= p.estoque_minimo) {
-                    critBody.innerHTML += `<tr class="border-b"><td class="p-2.5 font-bold">${p.nome}</td><td class="p-2.5 text-center text-red-600 font-bold">${p.quantidade_atual}</td></tr>`;
+                    critBody.innerHTML += `<tr class="border-b"><td class="p-2.5 font-bold">${escapeHtml(p.nome)}</td><td class="p-2.5 text-center text-red-600 font-bold">${p.quantidade_atual}</td></tr>`;
                 }
             });
         }
@@ -331,12 +349,14 @@
                 quantidade_atual: parseFloat(document.getElementById("prod_atual").value), estoque_minimo: parseFloat(document.getElementById("prod_minimo").value),
                 preco_custo: parseFloat(document.getElementById("prod_custo").value || 0), preco_venda: parseFloat(document.getElementById("prod_venda").value)
             };
-            const url = id ? `/produtos/${id}?usuario_resp=${USUARIO_LOGADO.nome}` : `/produtos/?usuario_resp=${USUARIO_LOGADO.nome}`;
+            const url = id ? `/produtos/${id}` : "/produtos/";
             const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             if (res.ok) { resetProductForm(); loadProducts(); loadHistory(); }
         });
 
-        function editProduct(p) {
+        function editProduct(id) {
+            const p = LISTA_PRODUTOS.find(item => item.id === id);
+            if (!p) return;
             document.getElementById("edit_product_id").value = p.id;
             document.getElementById("prod_nome").value = p.nome;
             document.getElementById("prod_unidade").value = p.unidade_medida;
@@ -348,7 +368,7 @@
         }
         
         function resetProductForm() { document.getElementById("productForm").reset(); document.getElementById("edit_product_id").value = ""; document.getElementById("productFormTitle").innerText = "Cadastrar Produto"; }
-        async function deleteProduct(id) { if(confirm("Excluir item?")) { await fetch(`/produtos/${id}?usuario_resp=${USUARIO_LOGADO.nome}`, { method: "DELETE" }); loadProducts(); loadHistory(); } }
+        async function deleteProduct(id) { if(confirm("Excluir item?")) { await fetch(`/produtos/${id}`, { method: "DELETE" }); loadProducts(); loadHistory(); } }
 
         // HISTÓRICO
         async function loadHistory() {
@@ -360,11 +380,11 @@
                 tbody.innerHTML += `
                     <tr class="border-b text-slate-700 hover:bg-gray-50 transition">
                         <td class="p-3 text-gray-400">${formatDate(h.data_hora)}</td>
-                        <td class="p-3 font-bold">${h.produto_nome}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${h.tipo_movimentacao}</span></td>
+                        <td class="p-3 font-bold">${escapeHtml(h.produto_nome)}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-100">${escapeHtml(h.tipo_movimentacao)}</span></td>
                         <td class="p-3 font-semibold">${h.quantidade}</td>
                         <td class="p-3 text-gray-400">${h.saldo_apos}</td>
-                        <td class="p-3 text-slate-600">${h.usuario_responsavel}</td>
+                        <td class="p-3 text-slate-600">${escapeHtml(h.usuario_responsavel)}</td>
                         <td class="p-3 text-right hist-admin-action ${!USUARIO_LOGADO.pode_gerenciar_historico?'hidden':''}"><button onclick="deleteHistoryRow(${h.id})" class="text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></td>
                     </tr>
                 `;
@@ -377,17 +397,18 @@
         async function loadClients() {
             const res = await fetch("/clientes/");
             const clients = await res.json();
+            LISTA_CLIENTES = clients;
             const tbody = document.getElementById("clientTableBody");
             tbody.innerHTML = "";
             clients.forEach(c => {
                 tbody.innerHTML += `
                     <tr class="border-b text-slate-700 hover:bg-gray-50">
-                        <td class="p-3 font-bold">${c.nome}</td>
-                        <td class="p-3">${c.documento || '-'}</td>
-                        <td class="p-3">${c.telefone || '-'}</td>
-                        <td class="p-3">${c.email || '-'}</td>
+                        <td class="p-3 font-bold">${escapeHtml(c.nome)}</td>
+                        <td class="p-3">${escapeHtml(c.documento || '-')}</td>
+                        <td class="p-3">${escapeHtml(c.telefone || '-')}</td>
+                        <td class="p-3">${escapeHtml(c.email || '-')}</td>
                         <td class="p-3 text-right space-x-2">
-                            <button onclick="editClient(${JSON.stringify(c).replace(/"/g, '&quot;')})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editClient(${c.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteClient(${c.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
@@ -404,7 +425,9 @@
             if (res.ok) { resetClientForm(); loadClients(); }
         });
 
-        function editClient(c) {
+        function editClient(id) {
+            const c = LISTA_CLIENTES.find(item => item.id === id);
+            if (!c) return;
             document.getElementById("edit_client_id").value = c.id;
             document.getElementById("cli_nome").value = c.nome;
             document.getElementById("cli_doc").value = c.documento || "";
@@ -419,19 +442,20 @@
         async function loadOrders() {
             const res = await fetch("/pedidos/");
             const orders = await res.json();
+            LISTA_PEDIDOS = orders;
             const tbody = document.getElementById("orderTableBody");
             tbody.innerHTML = "";
             orders.forEach(o => {
                 tbody.innerHTML += `
                     <tr class="border-b text-slate-700 hover:bg-gray-50">
                         <td class="p-3">${formatDate(o.data_entrega)}</td>
-                        <td class="p-3 font-bold">${o.cliente_nome}</td>
-                        <td class="p-3">${o.produto_nome}</td>
+                        <td class="p-3 font-bold">${escapeHtml(o.cliente_nome)}</td>
+                        <td class="p-3">${escapeHtml(o.produto_nome)}</td>
                         <td class="p-3 font-semibold">${o.quantidade}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-amber-100">${o.status}</span></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-amber-100">${escapeHtml(o.status)}</span></td>
                         <td class="p-3 text-right space-x-1">
                             <button onclick="changeOrderStatus(${o.id}, 'Entregue')" class="text-xs bg-emerald-500 text-white px-1.5 py-0.5 rounded">OK</button>
-                            <button onclick="editOrder(${JSON.stringify(o).replace(/"/g, '&quot;')})" class="text-blue-500 ml-2"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editOrder(${o.id})" class="text-blue-500 ml-2"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteOrder(${o.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
@@ -448,7 +472,9 @@
             if(res.ok) { resetOrderForm(); loadOrders(); }
         });
 
-        function editOrder(o) {
+        function editOrder(id) {
+            const o = LISTA_PEDIDOS.find(item => item.id === id);
+            if (!o) return;
             document.getElementById("edit_order_id").value = o.id;
             document.getElementById("ord_cliente").value = o.cliente_nome;
             document.getElementById("ord_produto").value = o.produto_nome;
@@ -470,10 +496,10 @@
                 tbody.innerHTML += `
                     <tr class="border-b text-slate-700">
                         <td class="p-3">${formatDate(a.data_hora)}</td>
-                        <td class="p-3"><strong>${a.titulo}</strong><br><small class="text-gray-400">${a.descricao||""}</small></td>
-                        <td class="p-3 text-gray-500">${a.local||"-"}</td>
+                        <td class="p-3"><strong>${escapeHtml(a.titulo)}</strong><br><small class="text-gray-400">${escapeHtml(a.descricao||"")}</small></td>
+                        <td class="p-3 text-gray-500">${escapeHtml(a.local||"-")}</td>
                         <td class="p-3 text-right space-x-2">
-                            <button onclick="editAgenda(${JSON.stringify(a).replace(/"/g, '&quot;')})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editAgenda(${a.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteAgenda(${a.id})" class="text-red-500"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
@@ -490,7 +516,9 @@
             if(res.ok) { resetAgendaForm(); loadAgenda(); }
         });
 
-        function editAgenda(a) {
+        function editAgenda(id) {
+            const a = LISTA_COMPROMISSOS.find(item => item.id === id);
+            if (!a) return;
             document.getElementById("edit_agenda_id").value = a.id;
             document.getElementById("ag_titulo").value = a.titulo;
             document.getElementById("ag_desc").value = a.descricao||"";
@@ -512,7 +540,7 @@
             for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="bg-gray-50/50 calendar-day-cell"></div>`;
             for (let d = 1; d <= daysInMonth; d++) {
                 const dayComps = LISTA_COMPROMISSOS.filter(c => new Date(c.data_hora).getDate() === d && new Date(c.data_hora).getMonth() === today.getMonth());
-                let txt = ""; dayComps.forEach(c => txt += `<div class="text-[9px] bg-emerald-100 text-emerald-800 p-0.5 rounded truncate mt-1">${c.titulo}</div>`);
+                let txt = ""; dayComps.forEach(c => txt += `<div class="text-[9px] bg-emerald-100 text-emerald-800 p-0.5 rounded truncate mt-1">${escapeHtml(c.titulo)}</div>`);
                 grid.innerHTML += `<div class="bg-white p-1 border flex flex-col justify-between calendar-day-cell"><span class="text-xs text-gray-400 font-bold">${d}</span><div class="overflow-y-auto">${txt}</div></div>`;
             }
         }
@@ -521,16 +549,17 @@
         async function loadUsers() {
             const res = await fetch("/usuarios/");
             const users = await res.json();
+            LISTA_USUARIOS = users;
             const tbody = document.getElementById("userTableBody");
             tbody.innerHTML = "";
             users.forEach(u => {
                 tbody.innerHTML += `
                     <tr class="border-b text-slate-700">
-                        <td class="p-3 font-bold">${u.nome}</td>
-                        <td class="p-3 text-gray-500">${u.usuario_login}</td>
-                        <td class="p-3 font-mono text-xs text-gray-400">${u.senha_hash}</td>
+                        <td class="p-3 font-bold">${escapeHtml(u.nome)}</td>
+                        <td class="p-3 text-gray-500">${escapeHtml(u.usuario_login)}</td>
+                        <td class="p-3 text-xs text-emerald-600"><i class="fa-solid fa-lock mr-1"></i>Protegida</td>
                         <td class="p-3 text-right space-x-2">
-                            <button onclick="editUser(${JSON.stringify(u).replace(/"/g, '&quot;')})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="editUser(${u.id})" class="text-blue-500"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteUser(${u.id})" class="text-red-500 ${u.usuario_login==='eduardo'?'hidden':''}"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     </tr>
@@ -544,7 +573,6 @@
             const payload = {
                 nome: document.getElementById("u_nome").value,
                 usuario_login: document.getElementById("u_login").value,
-                senha: document.getElementById("u_senha").value,
                 pode_gerenciar_usuarios: document.getElementById("perm_usuarios").checked,
                 pode_alterar_custos: document.getElementById("perm_custos").checked,
                 pode_movimentar_estoque: document.getElementById("perm_estoque").checked,
@@ -553,16 +581,22 @@
                 pode_acessar_docs: document.getElementById("perm_docs").checked,
                 pode_gerenciar_historico: document.getElementById("perm_historico").checked
             };
+            const senha = document.getElementById("u_senha").value;
+            if (senha) payload.senha = senha;
             const url = id ? `/usuarios/${id}` : "/usuarios/";
             const res = await fetch(url, { method: id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
             if(res.ok) { resetUserForm(); loadUsers(); }
         });
 
-        function editUser(u) {
+        function editUser(id) {
+            const u = LISTA_USUARIOS.find(item => item.id === id);
+            if (!u) return;
             document.getElementById("edit_user_id").value = u.id;
             document.getElementById("u_nome").value = u.nome;
             document.getElementById("u_login").value = u.usuario_login;
-            document.getElementById("u_senha").value = u.senha_hash;
+            document.getElementById("u_senha").value = "";
+            document.getElementById("u_senha").required = false;
+            document.getElementById("u_senha").placeholder = "Deixe vazio para manter a senha";
             document.getElementById("perm_usuarios").checked = u.pode_gerenciar_usuarios;
             document.getElementById("perm_custos").checked = u.pode_alterar_custos;
             document.getElementById("perm_estoque").checked = u.pode_movimentar_estoque;
@@ -572,8 +606,15 @@
             document.getElementById("perm_historico").checked = u.pode_gerenciar_historico;
             document.getElementById("userFormTitle").innerText = "Editar Usuário";
         }
-        function resetUserForm() { document.getElementById("userForm").reset(); document.getElementById("edit_user_id").value = ""; document.getElementById("userFormTitle").innerText = "Adicionar Usuário"; }
+        function resetUserForm() { document.getElementById("userForm").reset(); document.getElementById("edit_user_id").value = ""; document.getElementById("u_senha").required = true; document.getElementById("u_senha").placeholder = "Mínimo de 12 caracteres"; document.getElementById("userFormTitle").innerText = "Adicionar Usuário"; }
         async function deleteUser(id) { if(confirm("Excluir usuário?")) { await fetch(`/usuarios/${id}`, { method: "DELETE" }); loadUsers(); } }
+        window.addEventListener("DOMContentLoaded", async () => {
+            const response = await fetch("/api/me");
+            if (response.ok) {
+                USUARIO_LOGADO = await response.json();
+                entrarNoPainel();
+            }
+        });
     </script>
 </body>
 </html>

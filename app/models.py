@@ -1,6 +1,9 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
 from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+
 from app.database import Base
+
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -9,8 +12,7 @@ class Usuario(Base):
     nome = Column(String, nullable=False)
     usuario_login = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
-    
-    # Permissões do Menu / Módulos
+
     pode_gerenciar_usuarios = Column(Boolean, default=False)
     pode_alterar_custos = Column(Boolean, default=False)
     pode_movimentar_estoque = Column(Boolean, default=False)
@@ -18,6 +20,7 @@ class Usuario(Base):
     pode_acessar_agenda = Column(Boolean, default=False)
     pode_acessar_docs = Column(Boolean, default=False)
     pode_gerenciar_historico = Column(Boolean, default=False)
+
 
 class Produto(Base):
     __tablename__ = "produtos"
@@ -30,6 +33,7 @@ class Produto(Base):
     preco_custo = Column(Float, nullable=False)
     preco_venda = Column(Float, nullable=False)
 
+
 class Cliente(Base):
     __tablename__ = "clientes"
 
@@ -38,6 +42,7 @@ class Cliente(Base):
     documento = Column(String, unique=True, index=True, nullable=True)
     telefone = Column(String, nullable=True)
     email = Column(String, nullable=True)
+
 
 class HistoricoEstoque(Base):
     __tablename__ = "historico_estoque"
@@ -50,6 +55,7 @@ class HistoricoEstoque(Base):
     usuario_responsavel = Column(String, nullable=False)
     data_hora = Column(DateTime, default=datetime.now)
 
+
 class Compromisso(Base):
     __tablename__ = "agenda"
 
@@ -58,6 +64,7 @@ class Compromisso(Base):
     descricao = Column(String, nullable=True)
     data_hora = Column(DateTime, nullable=False)
     local = Column(String, nullable=True)
+
 
 class PedidoFuturo(Base):
     __tablename__ = "pedidos_futuros"
