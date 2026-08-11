@@ -14,7 +14,10 @@ router = APIRouter(prefix="/api", tags=["Autenticação"])
 def login(dados: schemas.LoginRequest, response: Response, db: Session = Depends(get_db)):
     usuario = (
         db.query(models.Usuario)
-        .filter(models.Usuario.usuario_login == dados.usuario_login.strip().lower())
+        .filter(
+            models.Usuario.usuario_login == dados.usuario_login.strip().lower(),
+            models.Usuario.ativo.is_(True),
+        )
         .first()
     )
     if not usuario or not verify_password(dados.senha, usuario.senha_hash):

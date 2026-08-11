@@ -1,5 +1,6 @@
 """Regras compartilhadas pela API."""
 
+import json
 import os
 import secrets
 
@@ -9,11 +10,79 @@ from app import models
 from app.security import hash_password, is_password_hash
 
 
+ROLE_PERMISSIONS = {
+    "DESENVOLVEDOR": {
+        "pode_gerenciar_usuarios": True,
+        "pode_alterar_custos": True,
+        "pode_movimentar_estoque": True,
+        "pode_gerenciar_clientes": True,
+        "pode_acessar_agenda": True,
+        "pode_acessar_docs": True,
+        "pode_gerenciar_historico": True,
+        "pode_criar_orcamentos": True,
+        "pode_aprovar_orcamentos": True,
+        "pode_registrar_vendas": True,
+        "pode_importar_planilhas": True,
+        "pode_editar_planilhas": True,
+        "pode_ver_faturamento": True,
+    },
+    "DONO": {
+        "pode_gerenciar_usuarios": True,
+        "pode_alterar_custos": True,
+        "pode_movimentar_estoque": True,
+        "pode_gerenciar_clientes": True,
+        "pode_acessar_agenda": True,
+        "pode_acessar_docs": False,
+        "pode_gerenciar_historico": True,
+        "pode_criar_orcamentos": True,
+        "pode_aprovar_orcamentos": True,
+        "pode_registrar_vendas": True,
+        "pode_importar_planilhas": True,
+        "pode_editar_planilhas": True,
+        "pode_ver_faturamento": True,
+    },
+    "FUNCIONARIO": {
+        "pode_gerenciar_usuarios": False,
+        "pode_alterar_custos": False,
+        "pode_movimentar_estoque": True,
+        "pode_gerenciar_clientes": True,
+        "pode_acessar_agenda": True,
+        "pode_acessar_docs": False,
+        "pode_gerenciar_historico": False,
+        "pode_criar_orcamentos": True,
+        "pode_aprovar_orcamentos": False,
+        "pode_registrar_vendas": True,
+        "pode_importar_planilhas": False,
+        "pode_editar_planilhas": False,
+        "pode_ver_faturamento": False,
+    },
+}
+
+
+def role_permissions(role: str) -> dict:
+    return ROLE_PERMISSIONS.get(role, ROLE_PERMISSIONS["FUNCIONARIO"]).copy()
+
+
+def audit_user_change(db: Session, actor, action: str, target, before=None, after=None) -> None:
+    db.add(models.AuditoriaSistema(
+        categoria="USUARIOS",
+        acao=action,
+        entidade="usuarios",
+        entidade_id=target.id,
+        dados_anteriores=json.dumps(before, ensure_ascii=False) if before else None,
+        dados_novos=json.dumps(after, ensure_ascii=False) if after else None,
+        usuario_id=actor.id,
+        usuario_nome=actor.nome,
+    ))
+
+
 def public_user(usuario: models.Usuario) -> dict:
     return {
         "id": usuario.id,
         "nome": usuario.nome,
         "usuario_login": usuario.usuario_login,
+        "tipo_usuario": usuario.tipo_usuario,
+        "ativo": usuario.ativo,
         "pode_gerenciar_usuarios": usuario.pode_gerenciar_usuarios,
         "pode_alterar_custos": usuario.pode_alterar_custos,
         "pode_movimentar_estoque": usuario.pode_movimentar_estoque,
@@ -21,6 +90,12 @@ def public_user(usuario: models.Usuario) -> dict:
         "pode_acessar_agenda": usuario.pode_acessar_agenda,
         "pode_acessar_docs": usuario.pode_acessar_docs,
         "pode_gerenciar_historico": usuario.pode_gerenciar_historico,
+        "pode_criar_orcamentos": usuario.pode_criar_orcamentos,
+        "pode_aprovar_orcamentos": usuario.pode_aprovar_orcamentos,
+        "pode_registrar_vendas": usuario.pode_registrar_vendas,
+        "pode_importar_planilhas": usuario.pode_importar_planilhas,
+        "pode_editar_planilhas": usuario.pode_editar_planilhas,
+        "pode_ver_faturamento": usuario.pode_ver_faturamento,
     }
 
 
@@ -47,11 +122,8 @@ def bootstrap_security(db: Session) -> None:
             )
             db.add(usuario)
         usuario.senha_hash = hash_password(password)
-        usuario.pode_gerenciar_usuarios = True
-        usuario.pode_alterar_custos = True
-        usuario.pode_movimentar_estoque = True
-        usuario.pode_gerenciar_clientes = True
-        usuario.pode_acessar_agenda = True
-        usuario.pode_acessar_docs = True
-        usuario.pode_gerenciar_historico = True
+        usuario.tipo_usuario = "DESENVOLVEDOR"
+        usuario.ativo = True
+        for permission, allowed in role_permissions("DESENVOLVEDOR").items():
+            setattr(usuario, permission, allowed)
     db.commit()

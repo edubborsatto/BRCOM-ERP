@@ -107,8 +107,9 @@ def test_ajuste_e_exclusao_de_auditoria_exigem_regras(admin_client):
     assert float(ajuste.json()["saldo_apos"]) == 7
 
 
-def test_historico_so_pode_ser_excluido_por_administrador(client, admin_client):
+def test_historico_nao_pode_ser_excluido_por_nenhum_perfil(client, admin_client):
     registro_id = admin_client.get("/historico/").json()[0]["id"]
+    assert admin_client.delete(f"/historico/{registro_id}").status_code == 405
     criado = admin_client.post(
         "/usuarios/",
         json={
@@ -124,7 +125,7 @@ def test_historico_so_pode_ser_excluido_por_administrador(client, admin_client):
         "/api/login",
         json={"usuario_login": "auditor", "senha": "SenhaAuditorTeste123"},
     ).status_code == 200
-    assert client.delete(f"/historico/{registro_id}").status_code == 403
+    assert client.delete(f"/historico/{registro_id}").status_code == 405
     client.post("/api/logout")
 
 
@@ -133,5 +134,25 @@ def test_interface_tem_menu_movel_e_arquivos_modulares(client):
     assert pagina.status_code == 200
     assert 'id="openMenu"' in pagina.text
     assert 'id="menuBackdrop"' in pagina.text
-    assert '/static/js/app.js' in pagina.text
+    assert '/static/js/app.js?v=4.7.0' in pagina.text
+    assert 'data-tab="pedidosTab"' in pagina.text
+    assert 'data-tab="formulasTab"' not in pagina.text
+    assert 'data-tab="orcamentosTab"' not in pagina.text
+    assert 'id="prod_localizacao"' in pagina.text
+    assert '<th>Localização</th><th>Quantidade atual</th><th>Ações</th>' in pagina.text
+    assert 'id="productQuantityLabel">Quantidade inicial' in pagina.text
+    assert 'id="mov_busca"' in pagina.text
+    assert 'id="confirmSaleDialog"' in pagina.text
+    assert 'id="historyFilters"' in pagina.text
     assert client.get("/static/css/app.css").status_code == 200
+
+
+def test_tabela_de_produtos_tem_edicao_e_alerta_de_estoque_baixo(client):
+    catalogo = client.get("/static/js/catalog.js").text
+    estilos = client.get("/static/css/app.css").text
+    assert 'data-edit-product="${p.id}"' in catalogo
+    assert "productPanel').scrollIntoView" in catalogo
+    assert "productQuantityLabel').textContent='Quantidade atual'" in catalogo
+    assert "Number(p.quantidade_atual)<Number(p.estoque_minimo)" in catalogo
+    assert "product-stock-low" in catalogo
+    assert ".product-stock-low,.low-stock-legend" in estilos

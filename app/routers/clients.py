@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import get_db
-from app.dependencies import current_user, require_permission
+from app.dependencies import current_user, require_admin, require_permission
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
@@ -39,7 +39,7 @@ def atualizar_cliente(cliente_id: int, dados: schemas.ClienteCreate, db: Session
 
 
 @router.delete("/{cliente_id}")
-def excluir_cliente(cliente_id: int, db: Session = Depends(get_db), _=Depends(require_permission("pode_gerenciar_clientes"))):
+def excluir_cliente(cliente_id: int, db: Session = Depends(get_db), _=Depends(require_admin)):
     cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")

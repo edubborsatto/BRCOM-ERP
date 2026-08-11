@@ -8,7 +8,8 @@ export const datetimeLocal = value => value ? new Date(value).toISOString().slic
 
 export function toast(message, error=false){const el=$('toast');el.textContent=message;el.className=`toast ${error?'error':''}`;setTimeout(()=>el.classList.add('hidden'),4200)}
 export async function api(url, options={}){
-  const response=await fetch(url,{credentials:'same-origin',...options,headers:{...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});
+  const isForm=typeof FormData!=='undefined'&&options.body instanceof FormData;
+  const response=await fetch(url,{credentials:'same-origin',...options,headers:{...(options.body&&!isForm?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});
   if(response.status===401){if(!['/api/me','/api/login'].includes(url))location.reload();throw new Error('Sessão expirada')}
   const contentType=response.headers.get('content-type')||'';
   const body=contentType.includes('json')?await response.json():await response.text();

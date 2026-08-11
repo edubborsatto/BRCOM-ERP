@@ -1,14 +1,15 @@
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-TEST_DATABASE = Path("test_brcom.db")
+TEST_DATABASE = Path(tempfile.gettempdir()) / f"brcom_test_{os.getpid()}.db"
 if TEST_DATABASE.exists():
     TEST_DATABASE.unlink()
 
-os.environ["DATABASE_URL"] = "sqlite:///./test_brcom.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ["SESSION_SECRET"] = "test-session-secret-with-more-than-32-characters"
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["BOOTSTRAP_ADMIN_LOGIN"] = "admin"

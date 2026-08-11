@@ -50,9 +50,74 @@ def test_permissoes_sao_aplicadas_no_servidor(client, admin_client):
     assert client.get("/usuarios/").status_code == 403
     assert client.post(
         "/clientes/",
-        json={"nome": "Cliente bloqueado"},
-    ).status_code == 403
+        json={"nome": "Cliente criado pelo funcionário"},
+    ).status_code == 201
+    assert client.get("/relatorios/vendas").status_code == 403
     client.post("/api/logout")
+
+
+def test_tres_perfis_e_confirmacao_especial(client, admin_client):
+    owner = admin_client.post(
+        "/usuarios/",
+        json={
+            "nome": "Dono Teste",
+            "usuario_login": "dono",
+            "senha": "SenhaDonoTeste123",
+            "tipo_usuario": "DONO",
+        },
+    )
+    assert owner.status_code == 201
+    assert owner.json()["pode_ver_faturamento"] is True
+    admin_client.post("/api/logout")
+    assert client.post(
+        "/api/login",
+        json={"usuario_login": "dono", "senha": "SenhaDonoTeste123"},
+    ).status_code == 200
+    denied = client.post(
+        "/usuarios/",
+        json={
+            "nome": "Desenvolvedor sem confirmação",
+            "usuario_login": "dev-sem-confirmacao",
+            "senha": "SenhaDevTeste123",
+            "tipo_usuario": "DESENVOLVEDOR",
+        },
+    )
+    assert denied.status_code == 409
+    confirmed = client.post(
+        "/usuarios/",
+        json={
+            "nome": "Desenvolvedor Confirmado",
+            "usuario_login": "dev-confirmado",
+            "senha": "SenhaDevTeste123",
+            "tipo_usuario": "DESENVOLVEDOR",
+            "confirmar_desenvolvedor": True,
+        },
+    )
+    assert confirmed.status_code == 201
+    assert confirmed.json()["pode_acessar_docs"] is True
+    client.post("/api/logout")
+
+
+def test_desativacao_preserva_usuario_e_bloqueia_login(client, admin_client):
+    created = admin_client.post(
+        "/usuarios/",
+        json={
+            "nome": "Usuário para desativar",
+            "usuario_login": "inativo",
+            "senha": "SenhaInativoTeste123",
+            "tipo_usuario": "FUNCIONARIO",
+        },
+    ).json()
+    assert admin_client.delete(f"/usuarios/{created['id']}").status_code == 200
+    users = admin_client.get("/usuarios/").json()
+    assert next(user for user in users if user["id"] == created["id"])["ativo"] is False
+    audit = admin_client.get("/usuarios/auditoria").json()
+    assert any(item["acao"] == "DESATIVADO" for item in audit)
+    admin_client.post("/api/logout")
+    assert client.post(
+        "/api/login",
+        json={"usuario_login": "inativo", "senha": "SenhaInativoTeste123"},
+    ).status_code == 401
 
 
 def test_auditoria_usa_identidade_da_sessao(admin_client):
