@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -15,6 +16,7 @@ def _produto_publico(produto: models.Produto, usuario: models.Usuario) -> dict:
     dados = schemas.ProdutoResponse.model_validate(produto).model_dump()
     if not usuario.pode_alterar_custos:
         dados["preco_custo"] = Decimal("0")
+        dados["preco_venda"] = Decimal("0")
     return dados
 
 
@@ -40,6 +42,13 @@ def criar_produto(
         quantidade = dados.quantidade_atual
         novo.quantidade_atual = 0
         record_movement(db, novo, "ENTRADA", quantidade, usuario, "Estoque inicial", "CADASTRO")
+    else:
+        db.add(models.HistoricoEstoque(
+            produto_id=novo.id, produto_nome=novo.nome, tipo_movimentacao="CADASTRO",
+            quantidade=0, saldo_anterior=0, saldo_apos=0,
+            motivo="Produto cadastrado", usuario_id=usuario.id,
+            usuario_responsavel=usuario.nome,
+        ))
     db.commit()
     db.refresh(novo)
     return _produto_publico(novo, usuario)
@@ -48,12 +57,26 @@ def criar_produto(
 @router.get("/", response_model=list[schemas.ProdutoResponse])
 def listar_produtos(
     tipo_item: str | None = Query(default=None),
+    busca: str | None = Query(default=None),
+    familia: str | None = Query(default=None),
+    tipo: str | None = Query(default=None),
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(current_user),
 ):
     query = db.query(models.Produto)
     if tipo_item:
         query = query.filter(models.Produto.tipo_item == tipo_item)
+    if busca:
+        termo = f"%{busca.strip()}%"
+        query = query.filter(or_(
+            models.Produto.codigo.ilike(termo), models.Produto.nome.ilike(termo),
+            models.Produto.tipo.ilike(termo), models.Produto.familia.ilike(termo),
+            models.Produto.localizacao.ilike(termo),
+        ))
+    if familia:
+        query = query.filter(models.Produto.familia == familia)
+    if tipo:
+        query = query.filter(models.Produto.tipo == tipo)
     return [_produto_publico(p, usuario) for p in query.order_by(models.Produto.nome).all()]
 
 
@@ -76,8 +99,21 @@ def atualizar_produto(
     valores = dados.model_dump(exclude={"quantidade_atual"})
     if not usuario.pode_alterar_custos:
         valores.pop("preco_custo", None)
+        valores.pop("preco_venda", None)
+    alteracoes = []
     for campo, valor in valores.items():
+        anterior = getattr(produto, campo)
+        if anterior != valor:
+            alteracoes.append(f"{campo}: {anterior or '—'} → {valor or '—'}")
         setattr(produto, campo, valor)
+    if alteracoes:
+        db.add(models.HistoricoEstoque(
+            produto_id=produto.id, produto_nome=produto.nome,
+            tipo_movimentacao="EDICAO", quantidade=0,
+            saldo_anterior=produto.quantidade_atual, saldo_apos=produto.quantidade_atual,
+            motivo="; ".join(alteracoes), usuario_id=usuario.id,
+            usuario_responsavel=usuario.nome,
+        ))
     db.commit()
     db.refresh(produto)
     return _produto_publico(produto, usuario)

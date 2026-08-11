@@ -22,8 +22,17 @@ def _next_number(db: Session) -> str:
 def criar(
     dados: schemas.VendaCreate,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_alterar_custos")),
+    _=Depends(require_permission("pode_registrar_vendas")),
 ):
+    dados.numero_documento = (dados.numero_documento or "").strip()
+    if not dados.numero_documento:
+        raise HTTPException(status_code=422, detail="Informe o número da nota fiscal ou do recibo")
+    duplicada = db.query(models.Venda).filter(
+        models.Venda.tipo_documento == dados.tipo_documento,
+        models.Venda.numero_documento == dados.numero_documento,
+    ).first()
+    if duplicada:
+        raise HTTPException(status_code=409, detail="Número de documento já usado neste tipo")
     if not db.get(models.Cliente, dados.cliente_id):
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
     if dados.orcamento_id and not db.get(models.Orcamento, dados.orcamento_id):
@@ -39,6 +48,6 @@ def criar(
 @router.get("/", response_model=list[schemas.VendaResponse])
 def listar(
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_alterar_custos")),
+    _=Depends(require_permission("pode_registrar_vendas")),
 ):
     return _query(db).order_by(models.Venda.data_venda.desc()).all()

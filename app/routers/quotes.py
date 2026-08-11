@@ -42,7 +42,7 @@ def _next_number(db: Session, model, prefix: str) -> str:
 def criar(
     dados: schemas.OrcamentoCreate,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_alterar_custos")),
+    _=Depends(require_permission("pode_criar_orcamentos")),
 ):
     if not db.get(models.Cliente, dados.cliente_id):
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -95,7 +95,7 @@ def aprovar(
     orcamento_id: int,
     dados: schemas.AprovacaoOrcamento,
     db: Session = Depends(get_db),
-    usuario: models.Usuario = Depends(require_permission("pode_alterar_custos")),
+    usuario: models.Usuario = Depends(require_permission("pode_aprovar_orcamentos")),
 ):
     orcamento = _query(db).filter(models.Orcamento.id == orcamento_id).first()
     if not orcamento:
@@ -128,7 +128,7 @@ def aprovar(
 def rejeitar(
     orcamento_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_alterar_custos")),
+    _=Depends(require_permission("pode_aprovar_orcamentos")),
 ):
     orcamento = _query(db).filter(models.Orcamento.id == orcamento_id).first()
     if not orcamento:

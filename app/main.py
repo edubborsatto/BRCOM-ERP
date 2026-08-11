@@ -12,7 +12,7 @@ from app.database import SessionLocal
 from app.dependencies import require_permission
 from app.routers import (
     agenda, auth, clients, formulas, history, inventory, orders, products,
-    quotes, reports, sales, service_orders, users,
+    imports, quotes, reports, sales, sales_sheets, service_orders, users,
 )
 from app.security import validate_security_config
 from app.services import bootstrap_security
@@ -35,7 +35,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="BRCom ERP",
-    version="4.2.0",
+    version="4.7.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -58,6 +58,8 @@ app.include_router(quotes.router)
 app.include_router(service_orders.router)
 app.include_router(sales.router)
 app.include_router(reports.router)
+app.include_router(imports.router)
+app.include_router(sales_sheets.router)
 
 app.mount(
     "/static",
