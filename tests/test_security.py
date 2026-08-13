@@ -51,7 +51,8 @@ def test_permissoes_sao_aplicadas_no_servidor(client, admin_client):
     assert client.post(
         "/clientes/",
         json={"nome": "Cliente criado pelo funcionário"},
-    ).status_code == 201
+    ).status_code == 403
+    assert client.post("/pedidos/", json={}).status_code == 403
     assert client.get("/relatorios/vendas").status_code == 403
     client.post("/api/logout")
 

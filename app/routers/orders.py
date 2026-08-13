@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List
 
@@ -10,12 +10,14 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies import current_user, require_permission
 from app.inventory import decimal, record_movement
+from app.services import audit
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos futuros"])
 
 
 def _query(db: Session):
     return db.query(models.PedidoFuturo).options(
+        joinedload(models.PedidoFuturo.itens).joinedload(models.PedidoFuturoItem.produto),
         joinedload(models.PedidoFuturo.itens)
         .joinedload(models.PedidoFuturoItem.materias_primas)
     )
@@ -147,24 +149,30 @@ def criar_pedido(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(require_permission("pode_criar_orcamentos")),
 ):
+    cliente = db.get(models.Cliente, dados.cliente_id) if dados.cliente_id else None
+    if dados.cliente_id and not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
     if dados.itens:
         produto_nome, quantidade = _resumo(dados.itens)
     else:
         produto_nome, quantidade = dados.produto_nome, dados.quantidade
     novo = models.PedidoFuturo(
-        cliente_nome=dados.cliente_nome.strip(),
+        cliente_id=cliente.id if cliente else None,
+        cliente_nome=cliente.nome if cliente else dados.cliente_nome.strip(),
         produto_nome=produto_nome,
         quantidade=quantidade,
         data_entrega=dados.data_entrega,
-        status="Pendente",
+        status="PENDENTE",
         fila_posicao=_proxima_posicao(db),
         prioridade=dados.prioridade,
+        observacoes=dados.observacoes,
     )
     try:
         db.add(novo)
         db.flush()
         if dados.itens:
             _reservar_itens(db, novo, dados.itens, usuario)
+        audit(db, usuario, "PEDIDOS", "CRIAR", "pedidos_futuros", novo.id, after={"cliente_id": novo.cliente_id, "status": novo.status})
         db.commit()
     except Exception:
         db.rollback()
@@ -185,7 +193,7 @@ def listar_pedidos(db: Session = Depends(get_db), _=Depends(current_user)):
 def reordenar_fila(
     dados: schemas.ReordenarFilaPedidos,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_criar_orcamentos")),
+    usuario=Depends(require_permission("pode_criar_orcamentos")),
 ):
     ativos = db.query(models.PedidoFuturo).filter(
         models.PedidoFuturo.cancelado_em.is_(None),
@@ -199,8 +207,13 @@ def reordenar_fila(
         )
     for posicao, pedido_id in enumerate(dados.pedidos_ids, start=1):
         next(p for p in ativos if p.id == pedido_id).fila_posicao = posicao
+    audit(db, usuario, "PEDIDOS", "REORDENAR_FILA", "pedidos_futuros", after={"pedidos_ids": dados.pedidos_ids})
     db.commit()
-    return listar_pedidos(db, _)
+    return _query(db).order_by(
+        models.PedidoFuturo.cancelado_em.is_not(None),
+        models.PedidoFuturo.fila_posicao.asc(),
+        models.PedidoFuturo.data_entrega.asc(),
+    ).all()
 
 
 @router.put("/{pedido_id}", response_model=schemas.PedidoFuturoResponse)
@@ -217,14 +230,21 @@ def atualizar_pedido(
         _devolver_reservas(db, pedido, usuario, "Revisão do pedido")
         pedido.itens.clear()
         db.flush()
-        pedido.cliente_nome = dados.cliente_nome.strip()
+        cliente = db.get(models.Cliente, dados.cliente_id) if dados.cliente_id else None
+        if dados.cliente_id and not cliente:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
+        anterior = {"cliente_id": pedido.cliente_id, "status": pedido.status, "data_entrega": pedido.data_entrega}
+        pedido.cliente_id = cliente.id if cliente else None
+        pedido.cliente_nome = cliente.nome if cliente else dados.cliente_nome.strip()
         pedido.data_entrega = dados.data_entrega
         pedido.prioridade = dados.prioridade
+        pedido.observacoes = dados.observacoes
         if dados.itens:
             _reservar_itens(db, pedido, dados.itens, usuario)
         else:
             pedido.produto_nome = dados.produto_nome
             pedido.quantidade = dados.quantidade
+        audit(db, usuario, "PEDIDOS", "EDITAR", "pedidos_futuros", pedido.id, before=anterior, after={"cliente_id": pedido.cliente_id, "data_entrega": pedido.data_entrega})
         db.commit()
     except Exception:
         db.rollback()
@@ -236,12 +256,13 @@ def atualizar_pedido(
 def alternar_prioridade(
     pedido_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_criar_orcamentos")),
+    usuario=Depends(require_permission("pode_criar_orcamentos")),
 ):
     pedido = _pedido(db, pedido_id)
     if pedido.confirmado_em or pedido.cancelado_em:
         raise HTTPException(status_code=409, detail="Pedido fora da fila ativa")
     pedido.prioridade = not pedido.prioridade
+    audit(db, usuario, "PEDIDOS", "ALTERAR_PRIORIDADE", "pedidos_futuros", pedido.id, after={"prioridade": pedido.prioridade})
     db.commit()
     return _pedido(db, pedido_id)
 
@@ -258,19 +279,37 @@ def confirmar_venda(
         raise HTTPException(status_code=409, detail="Venda deste pedido já foi confirmada")
     if pedido.cancelado_em:
         raise HTTPException(status_code=409, detail="Pedido cancelado não pode ser confirmado")
-    duplicado = db.query(models.PedidoFuturo).filter(
-        models.PedidoFuturo.id != pedido_id,
-        models.PedidoFuturo.tipo_documento == dados.tipo_documento,
-        models.PedidoFuturo.numero_documento == dados.numero_documento,
-    ).first()
+    if pedido.status != "PRONTO":
+        raise HTTPException(status_code=409, detail="Somente pedido PRONTO pode virar venda")
+    if not pedido.cliente_id:
+        raise HTTPException(status_code=409, detail="Relacione o pedido a um cliente cadastrado antes da venda")
+    duplicado = db.query(models.Venda).filter(models.Venda.tipo_documento == dados.tipo_documento, models.Venda.numero_documento == dados.numero_documento, models.Venda.status == "ATIVA").first()
     if duplicado:
         raise HTTPException(status_code=409, detail="Número de documento já usado neste tipo")
     pedido.tipo_documento = dados.tipo_documento
     pedido.numero_documento = dados.numero_documento
-    pedido.status = "Venda confirmada"
+    pedido.modalidade_entrega = dados.modalidade_entrega
+    valor = sum((decimal(i.quantidade_total) * decimal(i.produto.preco_venda) for i in pedido.itens), Decimal("0"))
+    if valor <= 0:
+        raise HTTPException(status_code=409, detail="Os produtos do pedido precisam ter preço de venda")
+    venda = models.Venda(
+        numero=f"VEN-{date.today().year}-{db.query(models.Venda).count() + 1:05d}",
+        cliente_id=pedido.cliente_id, pedido_futuro_id=pedido.id,
+        orcamento_id=pedido.orcamento_id, ordem_servico_id=pedido.ordem_servico_id,
+        tipo_documento=dados.tipo_documento, numero_documento=dados.numero_documento,
+        valor_total=valor, data_venda=date.today(), status="ATIVA",
+        observacoes=f"Venda originada do pedido #{pedido.id}",
+    )
+    db.add(venda)
+    db.flush()
+    pedido.venda_id = venda.id
+    # A emissão do documento cria a venda, mas entrega/retirada continua sendo
+    # uma etapa operacional explícita e auditável.
+    pedido.status = "PRONTO"
     pedido.confirmado_em = datetime.now()
     pedido.confirmado_por_id = usuario.id
     pedido.confirmado_por_nome = usuario.nome
+    audit(db, usuario, "VENDAS", "CRIAR_DE_PEDIDO", "vendas", venda.id, after={"pedido_id": pedido.id, "valor_total": valor, "documento": dados.numero_documento, "modalidade_entrega": dados.modalidade_entrega})
     db.commit()
     return _pedido(db, pedido_id)
 
@@ -292,8 +331,75 @@ def cancelar_pedido(
         pedido.cancelado_em = datetime.now()
         pedido.cancelado_por_id = usuario.id
         pedido.cancelado_por_nome = usuario.nome
+        audit(db, usuario, "PEDIDOS", "CANCELAR", "pedidos_futuros", pedido.id, before={"status": pedido.status}, after={"status": "CANCELADO"})
         db.commit()
     except Exception:
         db.rollback()
         raise
     return _pedido(db, pedido_id)
+
+
+STATUS_TRANSITIONS = {
+    "PENDENTE": {"AGUARDANDO_PRODUCAO"},
+    "AGUARDANDO_PRODUCAO": {"EM_PRODUCAO"},
+    "EM_PRODUCAO": {"PRODUCAO_CONCLUIDA"},
+    "PRODUCAO_CONCLUIDA": {"SEPARADO"},
+    "SEPARADO": {"PRONTO"},
+    "PRONTO": {"ENTREGUE", "RETIRADO"},
+}
+STATUS_PERMISSION = {
+    "EM_PRODUCAO": "pode_iniciar_producao",
+    "PRODUCAO_CONCLUIDA": "pode_concluir_producao",
+    "SEPARADO": "pode_separar_pedido",
+    "PRONTO": "pode_marcar_pronto",
+    "ENTREGUE": "pode_concluir_tarefa", "RETIRADO": "pode_concluir_tarefa",
+}
+
+
+@router.post("/{pedido_id}/status", response_model=schemas.PedidoFuturoResponse)
+def alterar_status(pedido_id: int, dados: schemas.AlteracaoStatusPedido,
+                   db: Session = Depends(get_db), usuario: models.Usuario = Depends(current_user)):
+    pedido = _pedido(db, pedido_id)
+    atual = pedido.status.upper().replace(" ", "_")
+    if dados.status not in STATUS_TRANSITIONS.get(atual, set()):
+        raise HTTPException(status_code=409, detail=f"Transição inválida: {atual} → {dados.status}")
+    if atual == "PRONTO" and dados.status in {"ENTREGUE", "RETIRADO"}:
+        if not pedido.venda_id:
+            raise HTTPException(status_code=409, detail="Confirme a venda antes de concluir a entrega ou retirada")
+        esperado = "ENTREGUE" if pedido.modalidade_entrega == "ENTREGA" else "RETIRADO"
+        if dados.status != esperado:
+            raise HTTPException(status_code=409, detail=f"Este pedido está programado para {pedido.modalidade_entrega.lower()}")
+    permissao = STATUS_PERMISSION.get(dados.status)
+    if usuario.tipo_usuario != "DESENVOLVEDOR" and permissao and not getattr(usuario, permissao, False):
+        raise HTTPException(status_code=403, detail="Sem permissão para executar esta etapa")
+    pedido.status = dados.status
+    if dados.observacao:
+        pedido.observacoes = (pedido.observacoes + "\n" if pedido.observacoes else "") + dados.observacao
+    audit(db, usuario, "PEDIDOS", "ALTERAR_STATUS", "pedidos_futuros", pedido.id, before={"status": atual}, after={"status": dados.status, "observacao": dados.observacao})
+    db.commit()
+    return _pedido(db, pedido.id)
+
+
+@router.post("/{pedido_id}/observacao", response_model=schemas.PedidoFuturoResponse)
+def registrar_observacao(pedido_id: int, dados: schemas.RegistroOperacionalPedido,
+                         db: Session = Depends(get_db), usuario: models.Usuario = Depends(current_user)):
+    if usuario.tipo_usuario != "DESENVOLVEDOR" and not usuario.pode_colocar_observacao:
+        raise HTTPException(status_code=403, detail="Sem permissão para registrar observação")
+    pedido = _pedido(db, pedido_id)
+    pedido.observacoes = (pedido.observacoes + "\n" if pedido.observacoes else "") + dados.texto
+    audit(db, usuario, "PEDIDOS", "ADICIONAR_OBSERVACAO", "pedidos_futuros", pedido.id, after={"texto": dados.texto})
+    db.commit()
+    return _pedido(db, pedido.id)
+
+
+@router.post("/{pedido_id}/falta-material", response_model=schemas.PedidoFuturoResponse)
+def informar_falta_material(pedido_id: int, dados: schemas.RegistroOperacionalPedido,
+                            db: Session = Depends(get_db), usuario: models.Usuario = Depends(current_user)):
+    if usuario.tipo_usuario != "DESENVOLVEDOR" and not usuario.pode_informar_falta_material:
+        raise HTTPException(status_code=403, detail="Sem permissão para informar falta de material")
+    pedido = _pedido(db, pedido_id)
+    texto = f"FALTA DE MATERIAL: {dados.texto}"
+    pedido.observacoes = (pedido.observacoes + "\n" if pedido.observacoes else "") + texto
+    audit(db, usuario, "PEDIDOS", "FALTA_MATERIAL", "pedidos_futuros", pedido.id, after={"texto": dados.texto})
+    db.commit()
+    return _pedido(db, pedido.id)

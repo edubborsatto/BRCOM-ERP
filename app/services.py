@@ -3,6 +3,8 @@
 import json
 import os
 import secrets
+from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -25,6 +27,10 @@ ROLE_PERMISSIONS = {
         "pode_importar_planilhas": True,
         "pode_editar_planilhas": True,
         "pode_ver_faturamento": True,
+        "pode_iniciar_producao": True, "pode_concluir_producao": True,
+        "pode_separar_pedido": True, "pode_marcar_pronto": True,
+        "pode_registrar_perda": True, "pode_concluir_tarefa": True,
+        "pode_informar_falta_material": True, "pode_colocar_observacao": True,
     },
     "DONO": {
         "pode_gerenciar_usuarios": True,
@@ -40,21 +46,29 @@ ROLE_PERMISSIONS = {
         "pode_importar_planilhas": True,
         "pode_editar_planilhas": True,
         "pode_ver_faturamento": True,
+        "pode_iniciar_producao": True, "pode_concluir_producao": True,
+        "pode_separar_pedido": True, "pode_marcar_pronto": True,
+        "pode_registrar_perda": True, "pode_concluir_tarefa": True,
+        "pode_informar_falta_material": True, "pode_colocar_observacao": True,
     },
     "FUNCIONARIO": {
         "pode_gerenciar_usuarios": False,
         "pode_alterar_custos": False,
-        "pode_movimentar_estoque": True,
-        "pode_gerenciar_clientes": True,
+        "pode_movimentar_estoque": False,
+        "pode_gerenciar_clientes": False,
         "pode_acessar_agenda": True,
         "pode_acessar_docs": False,
         "pode_gerenciar_historico": False,
-        "pode_criar_orcamentos": True,
+        "pode_criar_orcamentos": False,
         "pode_aprovar_orcamentos": False,
-        "pode_registrar_vendas": True,
+        "pode_registrar_vendas": False,
         "pode_importar_planilhas": False,
         "pode_editar_planilhas": False,
         "pode_ver_faturamento": False,
+        "pode_iniciar_producao": True, "pode_concluir_producao": True,
+        "pode_separar_pedido": True, "pode_marcar_pronto": True,
+        "pode_registrar_perda": True, "pode_concluir_tarefa": True,
+        "pode_informar_falta_material": True, "pode_colocar_observacao": True,
     },
 }
 
@@ -73,6 +87,24 @@ def audit_user_change(db: Session, actor, action: str, target, before=None, afte
         dados_novos=json.dumps(after, ensure_ascii=False) if after else None,
         usuario_id=actor.id,
         usuario_nome=actor.nome,
+    ))
+
+
+def _json_default(value):
+    if isinstance(value, (date, datetime, Decimal)):
+        return str(value)
+    return str(value)
+
+
+def audit(db: Session, actor, module: str, action: str, entity: str,
+          entity_id: int | None = None, before=None, after=None) -> None:
+    """Registra auditoria na mesma transação da alteração de negócio."""
+    db.add(models.AuditoriaSistema(
+        categoria=module.upper(), acao=action.upper(), entidade=entity,
+        entidade_id=entity_id,
+        dados_anteriores=json.dumps(before, ensure_ascii=False, default=_json_default) if before is not None else None,
+        dados_novos=json.dumps(after, ensure_ascii=False, default=_json_default) if after is not None else None,
+        usuario_id=actor.id, usuario_nome=actor.nome,
     ))
 
 
@@ -96,6 +128,14 @@ def public_user(usuario: models.Usuario) -> dict:
         "pode_importar_planilhas": usuario.pode_importar_planilhas,
         "pode_editar_planilhas": usuario.pode_editar_planilhas,
         "pode_ver_faturamento": usuario.pode_ver_faturamento,
+        "pode_iniciar_producao": usuario.pode_iniciar_producao,
+        "pode_concluir_producao": usuario.pode_concluir_producao,
+        "pode_separar_pedido": usuario.pode_separar_pedido,
+        "pode_marcar_pronto": usuario.pode_marcar_pronto,
+        "pode_registrar_perda": usuario.pode_registrar_perda,
+        "pode_concluir_tarefa": usuario.pode_concluir_tarefa,
+        "pode_informar_falta_material": usuario.pode_informar_falta_material,
+        "pode_colocar_observacao": usuario.pode_colocar_observacao,
     }
 
 

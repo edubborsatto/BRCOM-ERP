@@ -23,6 +23,14 @@ class UsuarioPermissions(BaseModel):
     pode_importar_planilhas: bool = False
     pode_editar_planilhas: bool = False
     pode_ver_faturamento: bool = False
+    pode_iniciar_producao: bool = False
+    pode_concluir_producao: bool = False
+    pode_separar_pedido: bool = False
+    pode_marcar_pronto: bool = False
+    pode_registrar_perda: bool = False
+    pode_concluir_tarefa: bool = False
+    pode_informar_falta_material: bool = False
+    pode_colocar_observacao: bool = False
 
 
 class UsuarioBase(UsuarioPermissions):
@@ -258,6 +266,24 @@ class VendaResponse(VendaCreate, OrmModel):
     id: int
     numero: str
     cliente: ClienteResponse
+    pedido_futuro_id: Optional[int] = None
+    status: str = "ATIVA"
+    cancelada_em: Optional[datetime] = None
+    cancelada_por_nome: Optional[str] = None
+    motivo_cancelamento: Optional[str] = None
+
+
+class VendaUpdate(BaseModel):
+    tipo_documento: Optional[Literal["RECIBO", "NOTA_FISCAL"]] = None
+    numero_documento: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    arquivo_documento: Optional[str] = None
+    valor_total: Optional[Decimal] = Field(default=None, gt=0)
+    data_venda: Optional[date] = None
+    observacoes: Optional[str] = None
+
+
+class CancelamentoVenda(BaseModel):
+    motivo: str = Field(min_length=3, max_length=500)
 
 
 class RegistroImportadoUpdate(BaseModel):
@@ -438,9 +464,11 @@ class PedidoItemResponse(OrmModel):
 
 
 class PedidoFuturoCreate(BaseModel):
-    cliente_nome: str = Field(min_length=2, max_length=255)
+    cliente_id: Optional[int] = None
+    cliente_nome: Optional[str] = Field(default=None, min_length=2, max_length=255)
     data_entrega: datetime
     prioridade: bool = False
+    observacoes: Optional[str] = None
     itens: list[PedidoItemCreate] = Field(default_factory=list)
     # Campos legados mantidos para aceitar cadastros da v4.6.1 durante a transição.
     produto_nome: Optional[str] = None
@@ -448,6 +476,8 @@ class PedidoFuturoCreate(BaseModel):
 
     @model_validator(mode="after")
     def validar_itens_ou_legado(self):
+        if not self.cliente_id and not self.cliente_nome:
+            raise ValueError("Selecione um cliente cadastrado")
         if not self.itens and not (self.produto_nome and self.quantidade):
             raise ValueError("Inclua pelo menos um produto no pedido")
         return self
@@ -456,6 +486,10 @@ class PedidoFuturoCreate(BaseModel):
 class PedidoFuturoResponse(OrmModel):
     id: int
     cliente_nome: str
+    cliente_id: Optional[int] = None
+    orcamento_id: Optional[int] = None
+    ordem_servico_id: Optional[int] = None
+    venda_id: Optional[int] = None
     produto_nome: str
     quantidade: Decimal
     data_entrega: datetime
@@ -464,11 +498,25 @@ class PedidoFuturoResponse(OrmModel):
     prioridade: bool = False
     tipo_documento: Optional[Literal["RECIBO", "NOTA_FISCAL"]] = None
     numero_documento: Optional[str] = None
+    modalidade_entrega: Optional[Literal["ENTREGA", "RETIRADA"]] = None
     confirmado_em: Optional[datetime] = None
     confirmado_por_nome: Optional[str] = None
     cancelado_em: Optional[datetime] = None
     cancelado_por_nome: Optional[str] = None
     itens: list[PedidoItemResponse] = Field(default_factory=list)
+    observacoes: Optional[str] = None
+
+
+class AlteracaoStatusPedido(BaseModel):
+    status: Literal[
+        "PENDENTE", "AGUARDANDO_PRODUCAO", "EM_PRODUCAO",
+        "PRODUCAO_CONCLUIDA", "SEPARADO", "PRONTO", "ENTREGUE", "RETIRADO",
+    ]
+    observacao: Optional[str] = Field(default=None, max_length=1000)
+
+
+class RegistroOperacionalPedido(BaseModel):
+    texto: str = Field(min_length=3, max_length=1000)
 
 
 class ReordenarFilaPedidos(BaseModel):
@@ -485,6 +533,7 @@ class ReordenarFilaPedidos(BaseModel):
 class ConfirmacaoVendaPedido(BaseModel):
     tipo_documento: Literal["RECIBO", "NOTA_FISCAL"]
     numero_documento: str = Field(min_length=1, max_length=80)
+    modalidade_entrega: Literal["ENTREGA", "RETIRADA"] = "ENTREGA"
 
     @field_validator("numero_documento")
     @classmethod
