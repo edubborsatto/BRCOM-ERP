@@ -35,7 +35,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="BRCom ERP",
-    version="4.7.0",
+    version="5.1.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,

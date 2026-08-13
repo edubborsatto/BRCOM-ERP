@@ -10,6 +10,7 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies import current_user, require_permission
 from app.inventory import decimal, record_movement
+from app.services import audit
 
 router = APIRouter(prefix="/ordens-servico", tags=["Ordens de serviço"])
 
@@ -35,7 +36,7 @@ def listar(db: Session = Depends(get_db), _=Depends(current_user)):
 def concluir(
     ordem_id: int,
     db: Session = Depends(get_db),
-    usuario: models.Usuario = Depends(require_permission("pode_movimentar_estoque")),
+    usuario: models.Usuario = Depends(require_permission("pode_concluir_producao")),
 ):
     ordem = _query(db).filter(models.OrdemServico.id == ordem_id).first()
     if not ordem:
@@ -73,6 +74,12 @@ def concluir(
         )
     ordem.status = "CONCLUIDA"
     ordem.concluida_em = datetime.now()
+    pedido = db.query(models.PedidoFuturo).filter(models.PedidoFuturo.ordem_servico_id == ordem.id).first()
+    if pedido and not pedido.cancelado_em:
+        status_anterior = pedido.status
+        pedido.status = "PRODUCAO_CONCLUIDA"
+        audit(db, usuario, "PEDIDOS", "ATUALIZAR_PELA_OS", "pedidos_futuros", pedido.id, before={"status": status_anterior}, after={"status": pedido.status, "ordem_servico_id": ordem.id})
+    audit(db, usuario, "ORDENS_SERVICO", "CONCLUIR", "ordens_servico", ordem.id, before={"status": "ABERTA"}, after={"status": "CONCLUIDA"})
     db.commit()
     return ordem
 

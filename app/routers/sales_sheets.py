@@ -19,6 +19,7 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies import require_permission
 from app.import_service import _row_hash, normalizar_texto
+from app.services import audit
 
 
 router = APIRouter(prefix="/planilhas-vendas", tags=["Planilhas de vendas"])
@@ -72,6 +73,8 @@ def _history(
         usuario_id=user.id,
         usuario_nome=user.nome,
     ))
+    audit(db, user, "PLANILHAS_VENDAS", action, "registros_venda_importados", record.id,
+          before=before, after=after)
 
 
 def _manual_batch(db: Session, document_type: str, user: models.Usuario):

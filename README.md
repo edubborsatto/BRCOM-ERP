@@ -182,3 +182,53 @@ Orçamentos e Fórmulas.
 A migração `20260811_07` adiciona campos de fila e cancelamento, além das tabelas
 de itens e matérias-primas reservadas. Ela foi validada em banco novo e em uma
 base criada pelo pacote original da v4.6.1, preservando os registros existentes.
+
+## ERP integrado da versão 5.0.0
+
+A revisão `20260812_08` conecta pedidos a clientes, orçamentos, ordens de
+serviço e vendas por chaves estrangeiras, preservando os campos textuais
+legados apenas como fotografia histórica. A confirmação de um pedido pronto
+cria uma venda oficial, e o cancelamento lógico retira essa venda do
+faturamento sem apagar seu histórico.
+
+O fluxo de pedidos usa os estados `PENDENTE`, `AGUARDANDO_PRODUCAO`,
+`EM_PRODUCAO`, `PRODUCAO_CONCLUIDA`, `SEPARADO`, `PRONTO` e
+`ENTREGUE`/`RETIRADO`. Permissões operacionais específicas permitem que um
+funcionário avance a produção sem receber acesso comercial ou administrativo.
+
+A agenda operacional agrega compromissos, prazos de pedidos e datas-limite de
+OS diretamente das tabelas de origem. O painel inclui indicadores clicáveis de
+estoque crítico, atrasos, produção e entregas. `auditoria_sistema` passa a ser
+a trilha geral do ERP, com filtros por período, usuário, módulo e ação.
+
+Validação antes do deploy:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m flake8 app tests
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+## Agenda mensal e fluxos concluídos da versão 5.1.0
+
+A revisão `20260812_09` transforma a Agenda em um calendário mensal responsivo,
+com mês, ano, navegação, modos Calendário/Lista e detalhamento diário. Os eventos
+são consultados diretamente em compromissos, pedidos e ordens de serviço; após
+a emissão do documento, o prazo do pedido aparece como entrega ou retirada.
+
+A aprovação de um orçamento agora cria, na mesma transação, a OS e o Pedido
+Futuro relacionados. A conclusão da OS atualiza o pedido para
+`PRODUCAO_CONCLUIDA`. Confirmar uma venda mantém o pedido em `PRONTO`; a entrega
+ou retirada precisa ser confirmada separadamente pelo funcionário autorizado.
+
+Vendas podem ser corrigidas pela interface e continuam usando cancelamento
+lógico. Como a venda não movimenta estoque por si só, seu cancelamento não cria
+uma entrada artificial: as reservas são revertidas no cancelamento do pedido e
+os movimentos reais permanecem na auditoria. Documentos importados deixam de
+ser somados novamente quando já existe venda oficial ativa com o mesmo tipo e
+número.
+
+As permissões operacionais passam a ser configuráveis individualmente,
+incluindo iniciar/concluir produção, separar, marcar pronto, registrar perda,
+concluir entrega/retirada, informar falta de material e adicionar observação.

@@ -1,7 +1,8 @@
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_
+from sqlalchemy import and_, exists, func, or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -13,6 +14,11 @@ router = APIRouter(prefix="/relatorios", tags=["Relatórios"])
 
 
 def _imported_sales(db: Session):
+    official_document = exists().where(and_(
+        models.Venda.status == "ATIVA",
+        models.Venda.tipo_documento == models.RegistroVendaImportado.tipo_documento,
+        models.Venda.numero_documento == models.RegistroVendaImportado.numero_documento,
+    ))
     return db.query(models.RegistroVendaImportado).join(models.ImportacaoPlanilha).filter(
         models.ImportacaoPlanilha.status == "CONFIRMADA",
         models.RegistroVendaImportado.ativo.is_(True),
@@ -20,6 +26,7 @@ def _imported_sales(db: Session):
             models.RegistroVendaImportado.status_importacao == "NOVO",
             models.RegistroVendaImportado.decisao_duplicidade == "IMPORTAR",
         ),
+        ~official_document,
     )
 
 
@@ -29,9 +36,14 @@ def resumo(
 ):
     materias = db.query(models.Produto).filter_by(tipo_item="MATERIA_PRIMA").all()
     acabados = db.query(models.Produto).filter_by(tipo_item="PRODUTO_ACABADO").all()
-    vendas = db.query(models.Venda).all()
+    vendas = db.query(models.Venda).filter(models.Venda.status == "ATIVA").all()
     importados = _imported_sales(db).all()
     financeiro = usuario.tipo_usuario == "DESENVOLVEDOR" or usuario.pode_ver_faturamento
+    hoje_inicio, amanha = datetime.combine(date.today(), time.min), datetime.combine(date.today() + timedelta(days=1), time.min)
+    ativos = db.query(models.PedidoFuturo).filter(
+        models.PedidoFuturo.cancelado_em.is_(None),
+        ~models.PedidoFuturo.status.in_(["ENTREGUE", "RETIRADO", "CANCELADO", "Cancelado"]),
+    )
     return {
         "clientes": db.query(models.Cliente).count(),
         "produtos": db.query(models.Produto).count(),
@@ -47,6 +59,12 @@ def resumo(
             models.PedidoFuturo.confirmado_em.is_(None)
         ).count(),
         "ordens_abertas": db.query(models.OrdemServico).filter_by(status="ABERTA").count(),
+        "estoque_abaixo_minimo": db.query(models.Produto).filter(models.Produto.quantidade_atual < models.Produto.estoque_minimo).count(),
+        "pedidos_atrasados": ativos.filter(models.PedidoFuturo.data_entrega < hoje_inicio).count(),
+        "pedidos_hoje": ativos.filter(models.PedidoFuturo.data_entrega >= hoje_inicio, models.PedidoFuturo.data_entrega < amanha).count(),
+        "pedidos_proximos": ativos.filter(models.PedidoFuturo.data_entrega >= amanha, models.PedidoFuturo.data_entrega < amanha + timedelta(days=7)).count(),
+        "producao_em_andamento": ativos.filter(models.PedidoFuturo.status.in_(["AGUARDANDO_PRODUCAO", "EM_PRODUCAO"])).count(),
+        "pedidos_prontos": ativos.filter(models.PedidoFuturo.status == "PRONTO").count(),
     }
 
 
@@ -59,7 +77,7 @@ def vendas_por_documento(
         models.Venda.tipo_documento,
         func.count(models.Venda.id),
         func.sum(models.Venda.valor_total),
-    ).group_by(models.Venda.tipo_documento).all()
+    ).filter(models.Venda.status == "ATIVA").group_by(models.Venda.tipo_documento).all()
     totals = {tipo: {"quantidade": qtd, "total": decimal(total)} for tipo, qtd, total in linhas}
     imported = _imported_sales(db).all()
     for tipo in ("NOTA_FISCAL", "RECIBO"):
@@ -87,7 +105,7 @@ def faturamento_periodico(
     """Faturamento mensal e anual de vendas manuais e importadas."""
     rows = [
         (sale.data_venda, sale.tipo_documento, decimal(sale.valor_total))
-        for sale in db.query(models.Venda).all()
+        for sale in db.query(models.Venda).filter(models.Venda.status == "ATIVA").all()
     ]
     rows.extend(
         (sale.data_venda, sale.tipo_documento, decimal(sale.valor_total))
@@ -139,7 +157,7 @@ def produtos(db: Session = Depends(get_db), _=Depends(current_user)):
 
 @router.get("/clientes")
 def clientes(db: Session = Depends(get_db), _=Depends(require_permission("pode_ver_faturamento"))):
-    vendas = dict(db.query(models.Venda.cliente_id, func.sum(models.Venda.valor_total)).group_by(models.Venda.cliente_id).all())
+    vendas = dict(db.query(models.Venda.cliente_id, func.sum(models.Venda.valor_total)).filter(models.Venda.status == "ATIVA").group_by(models.Venda.cliente_id).all())
     return [{"id": c.id, "nome": c.nome, "documento": c.documento, "total_vendas": vendas.get(c.id, 0)} for c in db.query(models.Cliente).all()]
 
 

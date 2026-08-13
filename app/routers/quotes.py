@@ -1,13 +1,15 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
 from app.dependencies import current_user, require_permission
 from app.inventory import decimal, formula_cost, money
+from app.services import audit
 
 router = APIRouter(prefix="/orcamentos", tags=["Orçamentos"])
 
@@ -42,7 +44,7 @@ def _next_number(db: Session, model, prefix: str) -> str:
 def criar(
     dados: schemas.OrcamentoCreate,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_criar_orcamentos")),
+    usuario=Depends(require_permission("pode_criar_orcamentos")),
 ):
     if not db.get(models.Cliente, dados.cliente_id):
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -76,6 +78,8 @@ def criar(
     orcamento.subtotal = money(subtotal)
     orcamento.total = money(subtotal - dados.desconto)
     db.add(orcamento)
+    db.flush()
+    audit(db, usuario, "ORCAMENTOS", "CRIAR", "orcamentos", orcamento.id, after={"cliente_id": orcamento.cliente_id, "total": orcamento.total})
     db.commit()
     return _serialize(_query(db).filter(models.Orcamento.id == orcamento.id).first())
 
@@ -120,6 +124,28 @@ def aprovar(
         data_limite=dados.data_limite,
     )
     db.add(os)
+    db.flush()
+    pedido = models.PedidoFuturo(
+        cliente_id=orcamento.cliente_id, cliente_nome=orcamento.cliente.nome,
+        orcamento_id=orcamento.id, ordem_servico_id=os.id,
+        produto_nome=orcamento.itens[0].produto.nome if len(orcamento.itens) == 1 else f"{len(orcamento.itens)} produtos",
+        quantidade=sum((i.quantidade for i in orcamento.itens), Decimal("0")),
+        data_entrega=datetime.combine(dados.data_limite or date.today(), time(hour=17)),
+        status="AGUARDANDO_PRODUCAO",
+        fila_posicao=int(db.query(func.max(models.PedidoFuturo.fila_posicao)).scalar() or 0) + 1,
+        observacoes=f"Gerado automaticamente pelo orçamento {orcamento.numero}",
+    )
+    db.add(pedido)
+    db.flush()
+    for item in orcamento.itens:
+        db.add(models.PedidoFuturoItem(
+            pedido_id=pedido.id, produto_id=item.produto_id,
+            produto_nome=item.produto.nome, quantidade_total=item.quantidade,
+            quantidade_estoque=Decimal("0"), quantidade_fabricar=item.quantidade,
+        ))
+    audit(db, usuario, "ORDENS_SERVICO", "CRIAR_DE_ORCAMENTO", "ordens_servico", os.id, after={"orcamento_id": orcamento.id, "pedido_id": pedido.id})
+    audit(db, usuario, "PEDIDOS", "CRIAR_DE_ORCAMENTO", "pedidos_futuros", pedido.id, after={"orcamento_id": orcamento.id, "ordem_servico_id": os.id})
+    audit(db, usuario, "ORCAMENTOS", "APROVAR", "orcamentos", orcamento.id, before={"status": "RASCUNHO"}, after={"status": "APROVADO", "ordem_servico_id": os.id, "pedido_id": pedido.id})
     db.commit()
     return _serialize(_query(db).filter(models.Orcamento.id == orcamento_id).first())
 
@@ -128,7 +154,7 @@ def aprovar(
 def rejeitar(
     orcamento_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_aprovar_orcamentos")),
+    usuario=Depends(require_permission("pode_aprovar_orcamentos")),
 ):
     orcamento = _query(db).filter(models.Orcamento.id == orcamento_id).first()
     if not orcamento:
@@ -136,5 +162,6 @@ def rejeitar(
     if orcamento.status != "RASCUNHO":
         raise HTTPException(status_code=409, detail="Orçamento já processado")
     orcamento.status = "REJEITADO"
+    audit(db, usuario, "ORCAMENTOS", "REJEITAR", "orcamentos", orcamento.id, before={"status": "RASCUNHO"}, after={"status": "REJEITADO"})
     db.commit()
     return _serialize(orcamento)

@@ -65,17 +65,29 @@ def test_funcionario_nao_recebe_custo_nem_venda(client, admin_client):
 
 def test_pedido_exige_documento_apenas_ao_confirmar(admin_client):
     delivery = (datetime.now() + timedelta(days=7)).isoformat()
+    client = admin_client.post("/clientes/", json={"nome": "Cliente futuro"}).json()
+    product = admin_client.post(
+        "/produtos/", json=product_payload("PA-PEDIDO-460", "Cinta especial")
+    ).json()
     order = admin_client.post(
         "/pedidos/",
         json={
-            "cliente_nome": "Cliente futuro",
-            "produto_nome": "Cinta especial",
-            "quantidade": 3,
+            "cliente_id": client["id"],
+            "itens": [{
+                "produto_id": product["id"], "quantidade_total": 3,
+                "quantidade_estoque": 3, "quantidade_fabricar": 0,
+            }],
             "data_entrega": delivery,
         },
     )
     assert order.status_code == 201
     assert order.json()["numero_documento"] is None
+
+    for status in ("AGUARDANDO_PRODUCAO", "EM_PRODUCAO", "PRODUCAO_CONCLUIDA", "SEPARADO", "PRONTO"):
+        advanced = admin_client.post(
+            f"/pedidos/{order.json()['id']}/status", json={"status": status}
+        )
+        assert advanced.status_code == 200
 
     empty = admin_client.post(
         f"/pedidos/{order.json()['id']}/confirmar-venda",
@@ -87,18 +99,35 @@ def test_pedido_exige_documento_apenas_ao_confirmar(admin_client):
         json={"tipo_documento": "NOTA_FISCAL", "numero_documento": "NF-460"},
     )
     assert confirmed.status_code == 200
-    assert confirmed.json()["status"] == "Venda confirmada"
+    assert confirmed.json()["status"] == "PRONTO"
+    assert confirmed.json()["modalidade_entrega"] == "ENTREGA"
+    delivered = admin_client.post(
+        f"/pedidos/{order.json()['id']}/status", json={"status": "ENTREGUE"}
+    )
+    assert delivered.status_code == 200
+    assert delivered.json()["status"] == "ENTREGUE"
     assert confirmed.json()["numero_documento"] == "NF-460"
+    sale = admin_client.get("/vendas/").json()[-1]
+    assert sale["pedido_futuro_id"] == order.json()["id"]
 
+    second_product = admin_client.post(
+        "/produtos/", json=product_payload("PA-PEDIDO-461", "Outro produto")
+    ).json()
     second = admin_client.post(
         "/pedidos/",
         json={
-            "cliente_nome": "Outro cliente",
-            "produto_nome": "Outro produto",
-            "quantidade": 1,
+            "cliente_id": client["id"],
+            "itens": [{
+                "produto_id": second_product["id"], "quantidade_total": 1,
+                "quantidade_estoque": 1, "quantidade_fabricar": 0,
+            }],
             "data_entrega": delivery,
         },
     )
+    for status in ("AGUARDANDO_PRODUCAO", "EM_PRODUCAO", "PRODUCAO_CONCLUIDA", "SEPARADO", "PRONTO"):
+        assert admin_client.post(
+            f"/pedidos/{second.json()['id']}/status", json={"status": status}
+        ).status_code == 200
     duplicate = admin_client.post(
         f"/pedidos/{second.json()['id']}/confirmar-venda",
         json={"tipo_documento": "NOTA_FISCAL", "numero_documento": "NF-460"},

@@ -8,6 +8,7 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies import current_user, require_admin, require_permission
 from app.inventory import record_movement
+from app.services import audit
 
 router = APIRouter(prefix="/produtos", tags=["Produtos"])
 
@@ -49,6 +50,7 @@ def criar_produto(
             motivo="Produto cadastrado", usuario_id=usuario.id,
             usuario_responsavel=usuario.nome,
         ))
+    audit(db, usuario, "PRODUTOS", "CRIAR", "produtos", novo.id, after={"codigo": novo.codigo, "nome": novo.nome})
     db.commit()
     db.refresh(novo)
     return _produto_publico(novo, usuario)
@@ -114,6 +116,7 @@ def atualizar_produto(
             motivo="; ".join(alteracoes), usuario_id=usuario.id,
             usuario_responsavel=usuario.nome,
         ))
+        audit(db, usuario, "PRODUTOS", "EDITAR", "produtos", produto.id, before={"alteracoes": alteracoes}, after=valores)
     db.commit()
     db.refresh(produto)
     return _produto_publico(produto, usuario)
@@ -138,6 +141,7 @@ def excluir_produto(
         saldo_apos=0, motivo="Cadastro excluído pelo administrador",
         usuario_id=usuario.id, usuario_responsavel=usuario.nome,
     ))
+    audit(db, usuario, "PRODUTOS", "EXCLUIR", "produtos", produto.id, before={"codigo": produto.codigo, "nome": produto.nome})
     db.delete(produto)
     db.commit()
     return {"status": "success"}

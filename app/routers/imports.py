@@ -13,6 +13,7 @@ from app import models, schemas
 from app.database import get_db
 from app.dependencies import require_permission
 from app.import_service import parse_workbook
+from app.services import audit
 
 router = APIRouter(prefix="/importacoes", tags=["Importação de vendas"])
 
@@ -118,6 +119,8 @@ async def previsualizar(
     db.add(import_batch)
     db.flush()
     db.add_all(models.RegistroVendaImportado(importacao_id=import_batch.id, **row) for row in prepared_rows)
+    audit(db, usuario, "IMPORTACOES", "PREVISUALIZAR", "importacoes_planilha", import_batch.id,
+          after={"arquivo": filename, "tipo_documento": tipo_documento, "linhas": len(rows)})
     db.commit()
     db.refresh(import_batch)
     return import_batch
@@ -326,7 +329,7 @@ def ignorar_duplicidades(
 def confirmar(
     importacao_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_importar_planilhas")),
+    usuario=Depends(require_permission("pode_importar_planilhas")),
 ):
     batch = db.get(models.ImportacaoPlanilha, importacao_id)
     if not batch:
@@ -342,6 +345,8 @@ def confirmar(
         )
     batch.status = "CONFIRMADA"
     batch.confirmado_em = datetime.now()
+    audit(db, usuario, "IMPORTACOES", "CONFIRMAR", "importacoes_planilha", batch.id,
+          before={"status": "PREVIA"}, after={"status": "CONFIRMADA", "total_linhas": batch.total_linhas})
     db.commit()
     db.refresh(batch)
     return batch
@@ -351,13 +356,15 @@ def confirmar(
 def cancelar_previa(
     importacao_id: int,
     db: Session = Depends(get_db),
-    _=Depends(require_permission("pode_importar_planilhas")),
+    usuario=Depends(require_permission("pode_importar_planilhas")),
 ):
     batch = db.get(models.ImportacaoPlanilha, importacao_id)
     if not batch:
         raise HTTPException(404, "Importação não encontrada")
     if batch.status != "PREVIA":
         raise HTTPException(409, "Importações confirmadas não podem ser apagadas")
+    audit(db, usuario, "IMPORTACOES", "CANCELAR", "importacoes_planilha", batch.id,
+          before={"arquivo": batch.nome_arquivo, "status": batch.status})
     db.delete(batch)
     db.commit()
 

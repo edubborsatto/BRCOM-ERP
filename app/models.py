@@ -42,6 +42,14 @@ class Usuario(Base):
     pode_importar_planilhas = Column(Boolean, default=False)
     pode_editar_planilhas = Column(Boolean, default=False)
     pode_ver_faturamento = Column(Boolean, default=False)
+    pode_iniciar_producao = Column(Boolean, default=False)
+    pode_concluir_producao = Column(Boolean, default=False)
+    pode_separar_pedido = Column(Boolean, default=False)
+    pode_marcar_pronto = Column(Boolean, default=False)
+    pode_registrar_perda = Column(Boolean, default=False)
+    pode_concluir_tarefa = Column(Boolean, default=False)
+    pode_informar_falta_material = Column(Boolean, default=False)
+    pode_colocar_observacao = Column(Boolean, default=False)
 
 
 class AuditoriaSistema(Base):
@@ -211,6 +219,12 @@ class Venda(Base):
     valor_total = Column(MONEY, nullable=False)
     data_venda = Column(Date, nullable=False)
     observacoes = Column(Text, nullable=True)
+    pedido_futuro_id = Column(Integer, ForeignKey("pedidos_futuros.id", ondelete="SET NULL"), nullable=True, unique=True)
+    status = Column(String(20), nullable=False, default="ATIVA", index=True)
+    cancelada_em = Column(DateTime, nullable=True)
+    cancelada_por_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
+    cancelada_por_nome = Column(String(120), nullable=True)
+    motivo_cancelamento = Column(Text, nullable=True)
 
     cliente = relationship("Cliente")
 
@@ -317,6 +331,7 @@ class Compromisso(Base):
     descricao = Column(String, nullable=True)
     data_hora = Column(DateTime, nullable=False)
     local = Column(String, nullable=True)
+    criado_por_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
 
 
 class PedidoFuturo(Base):
@@ -324,12 +339,17 @@ class PedidoFuturo(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     cliente_nome = Column(String, nullable=False)
+    cliente_id = Column(Integer, ForeignKey("clientes.id", ondelete="RESTRICT"), nullable=True, index=True)
+    orcamento_id = Column(Integer, ForeignKey("orcamentos.id", ondelete="SET NULL"), nullable=True, index=True)
+    ordem_servico_id = Column(Integer, ForeignKey("ordens_servico.id", ondelete="SET NULL"), nullable=True, index=True)
+    venda_id = Column(Integer, ForeignKey("vendas.id", ondelete="SET NULL"), nullable=True, unique=True)
     produto_nome = Column(String, nullable=False)
     quantidade = Column(QUANTITY, nullable=False)
     data_entrega = Column(DateTime, nullable=False)
     status = Column(String, default="Pendente")
     tipo_documento = Column(String(20), nullable=True)
     numero_documento = Column(String(80), nullable=True, index=True)
+    modalidade_entrega = Column(String(20), nullable=True)
     confirmado_em = Column(DateTime, nullable=True)
     confirmado_por_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
     confirmado_por_nome = Column(String(120), nullable=True)
@@ -338,6 +358,11 @@ class PedidoFuturo(Base):
     cancelado_em = Column(DateTime, nullable=True)
     cancelado_por_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
     cancelado_por_nome = Column(String(120), nullable=True)
+    observacoes = Column(Text, nullable=True)
+    atualizado_em = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    cliente = relationship("Cliente")
+    venda = relationship("Venda", foreign_keys=[venda_id])
 
     itens = relationship(
         "PedidoFuturoItem", back_populates="pedido", cascade="all, delete-orphan",

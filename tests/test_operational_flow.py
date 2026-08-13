@@ -65,10 +65,19 @@ def test_fluxo_orcamento_producao_venda_e_relatorios(admin_client):
     assert aprovado.status_code == 200
     assert aprovado.json()["ordem_servico_id"]
 
+    linked_orders = [p for p in admin_client.get("/pedidos/").json()
+                     if p["orcamento_id"] == orcamento.json()["id"]]
+    assert len(linked_orders) == 1
+    assert linked_orders[0]["ordem_servico_id"] == aprovado.json()["ordem_servico_id"]
+    assert linked_orders[0]["status"] == "AGUARDANDO_PRODUCAO"
+
     os_id = aprovado.json()["ordem_servico_id"]
     conclusao = admin_client.post(f"/ordens-servico/{os_id}/concluir")
     assert conclusao.status_code == 200
     assert conclusao.json()["status"] == "CONCLUIDA"
+    linked_order = next(p for p in admin_client.get("/pedidos/").json()
+                        if p["orcamento_id"] == orcamento.json()["id"])
+    assert linked_order["status"] == "PRODUCAO_CONCLUIDA"
 
     produtos = {p["codigo"]: p for p in admin_client.get("/produtos/").json()}
     assert float(produtos["MP-TESTE"]["quantidade_atual"]) == 93.4
@@ -134,7 +143,7 @@ def test_interface_tem_menu_movel_e_arquivos_modulares(client):
     assert pagina.status_code == 200
     assert 'id="openMenu"' in pagina.text
     assert 'id="menuBackdrop"' in pagina.text
-    assert '/static/js/app.js?v=4.7.0' in pagina.text
+    assert '/static/js/app.js?v=5.1.0' in pagina.text
     assert 'data-tab="pedidosTab"' in pagina.text
     assert 'data-tab="formulasTab"' not in pagina.text
     assert 'data-tab="orcamentosTab"' not in pagina.text

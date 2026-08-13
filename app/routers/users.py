@@ -1,3 +1,4 @@
+from datetime import date, datetime, time, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -151,9 +152,25 @@ def desativar_usuario(
 @router.get("/auditoria", response_model=list[schemas.AuditoriaSistemaResponse])
 def listar_auditoria(
     limite: int = Query(default=200, ge=1, le=1000),
+    data_inicial: date | None = None,
+    data_final: date | None = None,
+    usuario_id: int | None = None,
+    modulo: str | None = None,
+    acao: str | None = None,
     db: Session = Depends(get_db),
     _: models.Usuario = Depends(require_admin),
 ):
-    return db.query(models.AuditoriaSistema).order_by(
+    query = db.query(models.AuditoriaSistema)
+    if data_inicial:
+        query = query.filter(models.AuditoriaSistema.criado_em >= datetime.combine(data_inicial, time.min))
+    if data_final:
+        query = query.filter(models.AuditoriaSistema.criado_em < datetime.combine(data_final + timedelta(days=1), time.min))
+    if usuario_id:
+        query = query.filter(models.AuditoriaSistema.usuario_id == usuario_id)
+    if modulo:
+        query = query.filter(models.AuditoriaSistema.categoria == modulo.upper())
+    if acao:
+        query = query.filter(models.AuditoriaSistema.acao == acao.upper())
+    return query.order_by(
         models.AuditoriaSistema.criado_em.desc()
     ).limit(limite).all()

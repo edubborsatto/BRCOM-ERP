@@ -1,9 +1,9 @@
-import {$,api,state,toast,showError} from './api.js?v=4.7.0';
-import {initCatalog,loadProducts,loadFormulas} from './catalog.js?v=4.7.0';
-import {initOperations,loadDashboard,loadQuotes,loadOrders,loadSales,loadReports} from './operations.js?v=4.7.0';
-import {initAdministration,loadClients,loadAgenda,loadFutureOrders,loadHistory,loadUsers} from './administration.js?v=4.7.0';
-import {initImports,loadImports} from './imports.js?v=4.7.0';
-import {initSalesSheets,loadSalesSheet} from './sales-sheets.js?v=4.7.0';
+import {$,api,state,toast,showError} from './api.js?v=5.1.0';
+import {initCatalog,loadProducts,loadFormulas} from './catalog.js?v=5.1.0';
+import {initOperations,loadDashboard,loadQuotes,loadOrders,loadSales,loadReports} from './operations.js?v=5.1.0';
+import {initAdministration,loadClients,loadAgenda,loadFutureOrders,loadHistory,loadUsers} from './administration.js?v=5.1.0';
+import {initImports,loadImports} from './imports.js?v=5.1.0';
+import {initSalesSheets,loadSalesSheet} from './sales-sheets.js?v=5.1.0';
 
 const loaders={dashboardTab:loadDashboard,produtosTab:loadProducts,estoqueTab:loadProducts,formulasTab:loadFormulas,orcamentosTab:loadQuotes,osTab:loadOrders,vendasTab:loadSales,importacoesTab:loadImports,planilhasVendasTab:loadSalesSheet,relatoriosTab:loadReports,clientesTab:loadClients,agendaTab:loadAgenda,pedidosTab:loadFutureOrders,historicoTab:async()=>{await loadProducts();return loadHistory()},usuariosTab:loadUsers};
 const titles={dashboardTab:'Painel',produtosTab:'Produtos',estoqueTab:'Movimentar estoque',formulasTab:'Fórmulas',orcamentosTab:'Orçamentos',osTab:'Ordens de serviço',vendasTab:'Vendas',importacoesTab:'Importar planilhas',planilhasVendasTab:'Planilhas de Vendas',relatoriosTab:'Relatórios',clientesTab:'Clientes',agendaTab:'Agenda',pedidosTab:'Pedidos futuros',historicoTab:'Auditoria',usuariosTab:'Usuários'};
