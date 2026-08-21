@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
-from app.dependencies import require_permission
+from app.dependencies import require_admin, require_permission
 from app.inventory import formula_cost
+from app.services import audit
 
 router = APIRouter(prefix="/formulas", tags=["Fórmulas de produção"])
 
@@ -34,7 +35,7 @@ def listar(
     db: Session = Depends(get_db),
     _=Depends(require_permission("pode_alterar_custos")),
 ):
-    return [_formula_dict(f) for f in _query(db).all()]
+    return [_formula_dict(f) for f in _query(db).join(models.Produto).filter(models.Produto.ativo.is_(True)).all()]
 
 
 @router.get("/{produto_id}", response_model=schemas.FormulaResponse)
@@ -59,7 +60,7 @@ def salvar(
     if dados.produto_id != produto_id:
         raise HTTPException(status_code=400, detail="Produto divergente")
     produto = db.get(models.Produto, produto_id)
-    if not produto or produto.tipo_item != "PRODUTO_ACABADO":
+    if not produto or not produto.ativo or produto.tipo_item != "PRODUTO_ACABADO":
         raise HTTPException(status_code=400, detail="Fórmula exige um produto acabado")
     ids = [c.materia_prima_id for c in dados.componentes]
     materias = db.query(models.Produto).filter(models.Produto.id.in_(ids)).all()
@@ -86,3 +87,19 @@ def salvar(
     produto.preco_venda = custos["preco_sugerido"]
     db.commit()
     return _formula_dict(formula)
+
+
+@router.delete("/{produto_id}")
+def excluir(
+    produto_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_admin),
+):
+    formula = db.query(models.FormulaProduto).filter_by(produto_id=produto_id).first()
+    if not formula:
+        raise HTTPException(status_code=404, detail="Fórmula não encontrada")
+    audit(db, usuario, "FORMULAS", "EXCLUIR", "formulas_produto", formula.id,
+          before={"produto_id": produto_id, "componentes": len(formula.componentes)})
+    db.delete(formula)
+    db.commit()
+    return {"status": "success"}

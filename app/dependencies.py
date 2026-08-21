@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.database import get_db
-from app.security import COOKIE_NAME, decode_access_token
+from app.security import COOKIE_NAME, decode_access_token, verify_password
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> models.Usuario:
@@ -48,3 +48,12 @@ def require_admin(usuario: models.Usuario = Depends(current_user)) -> models.Usu
             detail="Ação permitida somente para administrador",
         )
     return usuario
+
+
+def confirm_critical_action(usuario: models.Usuario, senha: str) -> None:
+    """Revalida a identidade antes de uma exclusão irreversível."""
+    if not senha or not verify_password(senha, usuario.senha_hash):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Senha incorreta. A exclusão definitiva não foi realizada",
+        )

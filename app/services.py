@@ -31,6 +31,7 @@ ROLE_PERMISSIONS = {
         "pode_separar_pedido": True, "pode_marcar_pronto": True,
         "pode_registrar_perda": True, "pode_concluir_tarefa": True,
         "pode_informar_falta_material": True, "pode_colocar_observacao": True,
+        "pode_enviar_sugestoes": True, "pode_administrar_sugestoes": True,
     },
     "DONO": {
         "pode_gerenciar_usuarios": True,
@@ -50,6 +51,7 @@ ROLE_PERMISSIONS = {
         "pode_separar_pedido": True, "pode_marcar_pronto": True,
         "pode_registrar_perda": True, "pode_concluir_tarefa": True,
         "pode_informar_falta_material": True, "pode_colocar_observacao": True,
+        "pode_enviar_sugestoes": True, "pode_administrar_sugestoes": True,
     },
     "FUNCIONARIO": {
         "pode_gerenciar_usuarios": False,
@@ -69,6 +71,7 @@ ROLE_PERMISSIONS = {
         "pode_separar_pedido": True, "pode_marcar_pronto": True,
         "pode_registrar_perda": True, "pode_concluir_tarefa": True,
         "pode_informar_falta_material": True, "pode_colocar_observacao": True,
+        "pode_enviar_sugestoes": True, "pode_administrar_sugestoes": False,
     },
 }
 
@@ -136,6 +139,8 @@ def public_user(usuario: models.Usuario) -> dict:
         "pode_concluir_tarefa": usuario.pode_concluir_tarefa,
         "pode_informar_falta_material": usuario.pode_informar_falta_material,
         "pode_colocar_observacao": usuario.pode_colocar_observacao,
+        "pode_enviar_sugestoes": usuario.pode_enviar_sugestoes,
+        "pode_administrar_sugestoes": usuario.pode_administrar_sugestoes,
     }
 
 

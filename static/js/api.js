@@ -19,3 +19,4 @@ export async function api(url, options={}){
 export const payload = data => ({method:'POST',body:JSON.stringify(data)});
 export function optionList(items,label='nome'){return items.map(item=>`<option value="${item.id}">${esc(typeof label==='function'?label(item):item[label])}</option>`).join('')}
 export function showError(error){toast(error.message||String(error),true)}
+export function criticalConfirmation(title,warning){return new Promise(resolve=>{const dialog=$('criticalActionDialog'),form=$('criticalActionForm');$('criticalActionTitle').textContent=title;$('criticalActionWarning').textContent=warning;form.reset();const finish=value=>{form.onsubmit=null;$('criticalActionCancel').onclick=null;dialog.close();resolve(value)};form.onsubmit=e=>{e.preventDefault();finish({senha:$('criticalActionPassword').value,motivo:$('criticalActionReason').value})};$('criticalActionCancel').onclick=()=>finish(null);dialog.showModal()})}

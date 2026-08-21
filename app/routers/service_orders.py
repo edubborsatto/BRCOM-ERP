@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
-from app.dependencies import current_user, require_permission
+from app.dependencies import confirm_critical_action, current_user, require_admin, require_permission
 from app.inventory import decimal, record_movement
 from app.services import audit
 
@@ -82,6 +82,40 @@ def concluir(
     audit(db, usuario, "ORDENS_SERVICO", "CONCLUIR", "ordens_servico", ordem.id, before={"status": "ABERTA"}, after={"status": "CONCLUIDA"})
     db.commit()
     return ordem
+
+
+@router.post("/{ordem_id}/excluir-definitivamente")
+def excluir_definitivamente(
+    ordem_id: int,
+    dados: schemas.ConfirmacaoCritica,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(require_admin),
+):
+    confirm_critical_action(usuario, dados.senha)
+    ordem = _query(db).filter(models.OrdemServico.id == ordem_id).first()
+    if not ordem:
+        raise HTTPException(status_code=404, detail="Ordem de serviço não encontrada")
+    movimentos = db.query(models.HistoricoEstoque).filter(
+        models.HistoricoEstoque.referencia == ordem.numero,
+        models.HistoricoEstoque.produto_id.is_not(None),
+    ).order_by(models.HistoricoEstoque.id.desc()).all()
+    for movimento in movimentos:
+        produto = db.get(models.Produto, movimento.produto_id)
+        if not produto:
+            continue
+        inverso = "ENTRADA" if movimento.tipo_movimentacao in {"SAIDA", "PERDA", "CONSUMO_PRODUCAO"} else "SAIDA"
+        record_movement(db, produto, inverso, movimento.quantidade, usuario,
+                        f"Estorno pela exclusão definitiva da {ordem.numero}", f"EXCLUSAO-{ordem.numero}")
+    db.query(models.PedidoFuturo).filter(models.PedidoFuturo.ordem_servico_id == ordem.id).update(
+        {"ordem_servico_id": None}, synchronize_session=False)
+    db.query(models.Venda).filter(models.Venda.ordem_servico_id == ordem.id).update(
+        {"ordem_servico_id": None}, synchronize_session=False)
+    audit(db, usuario, "ORDENS_SERVICO", "EXCLUIR_DEFINITIVAMENTE", "ordens_servico", ordem.id,
+          before={"numero": ordem.numero, "status": ordem.status, "movimentos_estornados": len(movimentos)},
+          after={"motivo": dados.motivo})
+    db.delete(ordem)
+    db.commit()
+    return {"status": "success", "movimentos_estornados": len(movimentos)}
 
 
 @router.get("/{ordem_id}/imprimir", response_class=HTMLResponse)

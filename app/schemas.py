@@ -31,6 +31,8 @@ class UsuarioPermissions(BaseModel):
     pode_concluir_tarefa: bool = False
     pode_informar_falta_material: bool = False
     pode_colocar_observacao: bool = False
+    pode_enviar_sugestoes: bool = True
+    pode_administrar_sugestoes: bool = False
 
 
 class UsuarioBase(UsuarioPermissions):
@@ -549,3 +551,74 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     status: str
     usuario: UsuarioResponse
+
+
+class ConfirmacaoCritica(BaseModel):
+    senha: str = Field(min_length=1, max_length=128)
+    motivo: str = Field(min_length=3, max_length=500)
+
+
+class MensagemSugestaoCreate(BaseModel):
+    conteudo: str = Field(min_length=2, max_length=5000)
+
+
+class MensagemSugestaoResponse(OrmModel):
+    id: int
+    autor_tipo: str
+    usuario_id: Optional[int] = None
+    conteudo: str
+    criado_em: datetime
+
+
+class HistoricoStatusSugestaoResponse(OrmModel):
+    id: int
+    status_anterior: Optional[str] = None
+    status_novo: str
+    observacao: Optional[str] = None
+    usuario_nome: str
+    criado_em: datetime
+
+
+class SugestaoResponse(OrmModel):
+    id: int
+    numero: Optional[str] = None
+    usuario_id: int
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    modulo: Optional[str] = None
+    resumo_ia: Optional[str] = None
+    status: str
+    prioridade: str
+    resposta_administrativa: Optional[str] = None
+    criado_em: datetime
+    atualizado_em: datetime
+    mensagens: list[MensagemSugestaoResponse] = Field(default_factory=list)
+    historico: list[HistoricoStatusSugestaoResponse] = Field(default_factory=list)
+
+
+class ConfirmacaoSugestao(BaseModel):
+    titulo: str = Field(min_length=3, max_length=255)
+    descricao: str = Field(min_length=5, max_length=10000)
+    modulo: str = Field(min_length=2, max_length=80)
+    resumo_ia: str = Field(min_length=5, max_length=10000)
+
+
+class AtualizacaoSugestaoAdmin(BaseModel):
+    status: Literal[
+        "EM_ANALISE", "AGUARDANDO_INFORMACAO", "APROVADA", "EM_ATENDIMENTO",
+        "IMPLEMENTADA", "RESPONDIDA", "FINALIZADA", "RECUSADA", "ARQUIVADA",
+    ]
+    prioridade: Literal["BAIXA", "NORMAL", "ALTA", "URGENTE"] = "NORMAL"
+    resposta: Optional[str] = Field(default=None, max_length=10000)
+
+
+class NotificacaoResponse(OrmModel):
+    id: int
+    usuario_id: int
+    tipo: str
+    titulo: str
+    mensagem: str
+    entidade: Optional[str] = None
+    entidade_id: Optional[int] = None
+    lida_em: Optional[datetime] = None
+    criado_em: datetime

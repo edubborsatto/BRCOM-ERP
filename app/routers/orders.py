@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
-from app.dependencies import current_user, require_permission
+from app.dependencies import confirm_critical_action, current_user, require_admin, require_permission
 from app.inventory import decimal, record_movement
 from app.services import audit
 
@@ -327,16 +327,48 @@ def cancelar_pedido(
         raise HTTPException(status_code=409, detail="Pedido já cancelado")
     try:
         _devolver_reservas(db, pedido, usuario, "Cancelamento")
+        status_anterior = pedido.status
         pedido.status = "Cancelado"
         pedido.cancelado_em = datetime.now()
         pedido.cancelado_por_id = usuario.id
         pedido.cancelado_por_nome = usuario.nome
-        audit(db, usuario, "PEDIDOS", "CANCELAR", "pedidos_futuros", pedido.id, before={"status": pedido.status}, after={"status": "CANCELADO"})
+        audit(db, usuario, "PEDIDOS", "CANCELAR", "pedidos_futuros", pedido.id, before={"status": status_anterior}, after={"status": "Cancelado"})
         db.commit()
     except Exception:
         db.rollback()
         raise
     return _pedido(db, pedido_id)
+
+
+@router.post("/{pedido_id}/excluir-definitivamente")
+def excluir_pedido_definitivamente(
+    pedido_id: int,
+    dados: schemas.ConfirmacaoCritica,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(require_admin),
+):
+    confirm_critical_action(usuario, dados.senha)
+    pedido = _pedido(db, pedido_id)
+    try:
+        if not pedido.cancelado_em:
+            _devolver_reservas(db, pedido, usuario, "Exclusão definitiva")
+        vendas = db.query(models.Venda).filter(
+            (models.Venda.pedido_futuro_id == pedido.id) | (models.Venda.id == pedido.venda_id)
+        ).all()
+        for venda in vendas:
+            audit(db, usuario, "VENDAS", "EXCLUIR_COM_PEDIDO", "vendas", venda.id,
+                  before={"numero": venda.numero, "valor_total": venda.valor_total},
+                  after={"motivo": dados.motivo})
+            db.delete(venda)
+        audit(db, usuario, "PEDIDOS", "EXCLUIR_DEFINITIVAMENTE", "pedidos_futuros", pedido.id,
+              before={"cliente_id": pedido.cliente_id, "status": pedido.status,
+                      "data_entrega": pedido.data_entrega}, after={"motivo": dados.motivo})
+        db.delete(pedido)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {"status": "success"}
 
 
 STATUS_TRANSITIONS = {
