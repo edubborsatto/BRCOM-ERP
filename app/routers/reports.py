@@ -34,8 +34,8 @@ def _imported_sales(db: Session):
 def resumo(
     db: Session = Depends(get_db), usuario: models.Usuario = Depends(current_user)
 ):
-    materias = db.query(models.Produto).filter_by(tipo_item="MATERIA_PRIMA").all()
-    acabados = db.query(models.Produto).filter_by(tipo_item="PRODUTO_ACABADO").all()
+    materias = db.query(models.Produto).filter_by(tipo_item="MATERIA_PRIMA", ativo=True).all()
+    acabados = db.query(models.Produto).filter_by(tipo_item="PRODUTO_ACABADO", ativo=True).all()
     vendas = db.query(models.Venda).filter(models.Venda.status == "ATIVA").all()
     importados = _imported_sales(db).all()
     financeiro = usuario.tipo_usuario == "DESENVOLVEDOR" or usuario.pode_ver_faturamento
@@ -46,7 +46,7 @@ def resumo(
     )
     return {
         "clientes": db.query(models.Cliente).count(),
-        "produtos": db.query(models.Produto).count(),
+        "produtos": db.query(models.Produto).filter(models.Produto.ativo.is_(True)).count(),
         "materias_primas": len(materias),
         "produtos_acabados": len(acabados),
         "valor_estoque_materias_primas": sum((decimal(p.quantidade_atual) * decimal(p.preco_custo) for p in materias), Decimal("0")) if financeiro else 0,
@@ -59,7 +59,7 @@ def resumo(
             models.PedidoFuturo.confirmado_em.is_(None)
         ).count(),
         "ordens_abertas": db.query(models.OrdemServico).filter_by(status="ABERTA").count(),
-        "estoque_abaixo_minimo": db.query(models.Produto).filter(models.Produto.quantidade_atual < models.Produto.estoque_minimo).count(),
+        "estoque_abaixo_minimo": db.query(models.Produto).filter(models.Produto.ativo.is_(True), models.Produto.quantidade_atual < models.Produto.estoque_minimo).count(),
         "pedidos_atrasados": ativos.filter(models.PedidoFuturo.data_entrega < hoje_inicio).count(),
         "pedidos_hoje": ativos.filter(models.PedidoFuturo.data_entrega >= hoje_inicio, models.PedidoFuturo.data_entrega < amanha).count(),
         "pedidos_proximos": ativos.filter(models.PedidoFuturo.data_entrega >= amanha, models.PedidoFuturo.data_entrega < amanha + timedelta(days=7)).count(),
@@ -152,7 +152,7 @@ def produtos(db: Session = Depends(get_db), _=Depends(current_user)):
         "codigo": p.codigo, "nome": p.nome, "tipo_item": p.tipo_item,
         "familia": p.familia, "quantidade": p.quantidade_atual,
         "estoque_minimo": p.estoque_minimo,
-    } for p in db.query(models.Produto).order_by(models.Produto.tipo_item, models.Produto.nome)]
+    } for p in db.query(models.Produto).filter(models.Produto.ativo.is_(True)).order_by(models.Produto.tipo_item, models.Produto.nome)]
 
 
 @router.get("/clientes")
@@ -167,4 +167,4 @@ def custos(db: Session = Depends(get_db), _=Depends(require_permission("pode_alt
         "codigo": p.codigo, "nome": p.nome, "tipo_item": p.tipo_item,
         "preco_custo": p.preco_custo, "preco_venda": p.preco_venda,
         "valor_em_estoque": decimal(p.preco_custo) * decimal(p.quantidade_atual),
-    } for p in db.query(models.Produto).order_by(models.Produto.nome)]
+    } for p in db.query(models.Produto).filter(models.Produto.ativo.is_(True)).order_by(models.Produto.nome)]

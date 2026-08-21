@@ -232,3 +232,19 @@ número.
 As permissões operacionais passam a ser configuráveis individualmente,
 incluindo iniciar/concluir produção, separar, marcar pronto, registrar perda,
 concluir entrega/retirada, informar falta de material e adicionar observação.
+
+## Sugestões, notificações e exclusões protegidas
+
+A migration `20260821_10` adiciona a central de Sugestões de melhoria, a
+conversa assistida, histórico de status, notificações e as novas permissões.
+O backend usa `OPENAI_API_KEY` somente no servidor e continua operacional sem
+a chave; `OPENAI_MODEL` é opcional e usa `gpt-4.1-mini` como padrão.
+
+Cancelamento e exclusão definitiva são ações diferentes. Vendas, pedidos,
+clientes com histórico e ordens de serviço exigem perfil Dono/Desenvolvedor,
+motivo e nova confirmação da senha. Estornos de estoque e desvinculações são
+executados na mesma transação, e a auditoria empresarial é preservada.
+
+Produtos ainda vinculados ao histórico são arquivados e deixam de aparecer na
+operação, evitando quebrar documentos antigos. Produtos sem vínculos e
+fórmulas podem ser excluídos normalmente.

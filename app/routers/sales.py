@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
 from app.database import get_db
-from app.dependencies import require_admin, require_permission
+from app.dependencies import confirm_critical_action, require_admin, require_permission
 from app.services import audit
 
 router = APIRouter(prefix="/vendas", tags=["Vendas e documentos"])
@@ -102,3 +102,34 @@ def cancelar(venda_id: int, dados: schemas.CancelamentoVenda, db: Session = Depe
     audit(db, usuario, "VENDAS", "CANCELAR", "vendas", venda.id, before={"status": "ATIVA"}, after={"status": "CANCELADA", "motivo": dados.motivo})
     db.commit()
     return venda
+
+
+@router.post("/{venda_id}/excluir-definitivamente")
+def excluir_definitivamente(
+    venda_id: int,
+    dados: schemas.ConfirmacaoCritica,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_admin),
+):
+    confirm_critical_action(usuario, dados.senha)
+    venda = db.get(models.Venda, venda_id)
+    if not venda:
+        raise HTTPException(status_code=404, detail="Venda não encontrada")
+    pedido = db.query(models.PedidoFuturo).filter(
+        (models.PedidoFuturo.venda_id == venda.id)
+        | (models.PedidoFuturo.id == venda.pedido_futuro_id)
+    ).first()
+    if pedido:
+        pedido.venda_id = None
+        pedido.confirmado_em = None
+        pedido.confirmado_por_id = None
+        pedido.confirmado_por_nome = None
+        if not pedido.cancelado_em:
+            pedido.status = "PRONTO"
+    audit(db, usuario, "VENDAS", "EXCLUIR_DEFINITIVAMENTE", "vendas", venda.id,
+          before={"numero": venda.numero, "documento": venda.numero_documento,
+                  "valor_total": venda.valor_total, "status": venda.status},
+          after={"motivo": dados.motivo})
+    db.delete(venda)
+    db.commit()
+    return {"status": "success"}

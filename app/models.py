@@ -50,6 +50,8 @@ class Usuario(Base):
     pode_concluir_tarefa = Column(Boolean, default=False)
     pode_informar_falta_material = Column(Boolean, default=False)
     pode_colocar_observacao = Column(Boolean, default=False)
+    pode_enviar_sugestoes = Column(Boolean, default=True)
+    pode_administrar_sugestoes = Column(Boolean, default=False)
 
 
 class AuditoriaSistema(Base):
@@ -71,6 +73,7 @@ class Produto(Base):
     __tablename__ = "produtos"
 
     id = Column(Integer, primary_key=True, index=True)
+    ativo = Column(Boolean, nullable=False, default=True, index=True)
     codigo = Column(String(40), unique=True, index=True, nullable=False)
     nome = Column(String, unique=True, index=True, nullable=False)
     tipo_item = Column(String(20), nullable=False, default="PRODUTO_ACABADO")
@@ -406,3 +409,66 @@ class PedidoFuturoMateriaPrima(Base):
 
     item = relationship("PedidoFuturoItem", back_populates="materias_primas")
     materia_prima = relationship("Produto", foreign_keys=[materia_prima_id])
+
+
+class Sugestao(Base):
+    __tablename__ = "sugestoes"
+
+    id = Column(Integer, primary_key=True)
+    numero = Column(String(30), unique=True, index=True, nullable=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False, index=True)
+    titulo = Column(String(255), nullable=True)
+    descricao = Column(Text, nullable=True)
+    modulo = Column(String(80), nullable=True, index=True)
+    resumo_ia = Column(Text, nullable=True)
+    status = Column(String(40), nullable=False, default="COLETANDO_IDEIA", index=True)
+    prioridade = Column(String(20), nullable=False, default="NORMAL", index=True)
+    resposta_administrativa = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    atualizado_em = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False, index=True)
+
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
+    mensagens = relationship("MensagemSugestao", back_populates="sugestao", cascade="all, delete-orphan", order_by="MensagemSugestao.id")
+    historico = relationship("HistoricoStatusSugestao", back_populates="sugestao", cascade="all, delete-orphan", order_by="HistoricoStatusSugestao.id")
+
+
+class MensagemSugestao(Base):
+    __tablename__ = "mensagens_sugestao"
+
+    id = Column(Integer, primary_key=True)
+    sugestao_id = Column(Integer, ForeignKey("sugestoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    autor_tipo = Column(String(20), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
+    conteudo = Column(Text, nullable=False)
+    criado_em = Column(DateTime, default=datetime.now, nullable=False, index=True)
+
+    sugestao = relationship("Sugestao", back_populates="mensagens")
+
+
+class HistoricoStatusSugestao(Base):
+    __tablename__ = "historico_status_sugestao"
+
+    id = Column(Integer, primary_key=True)
+    sugestao_id = Column(Integer, ForeignKey("sugestoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    status_anterior = Column(String(40), nullable=True)
+    status_novo = Column(String(40), nullable=False)
+    observacao = Column(Text, nullable=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
+    usuario_nome = Column(String(120), nullable=False)
+    criado_em = Column(DateTime, default=datetime.now, nullable=False, index=True)
+
+    sugestao = relationship("Sugestao", back_populates="historico")
+
+
+class Notificacao(Base):
+    __tablename__ = "notificacoes"
+
+    id = Column(Integer, primary_key=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo = Column(String(40), nullable=False, index=True)
+    titulo = Column(String(255), nullable=False)
+    mensagem = Column(Text, nullable=False)
+    entidade = Column(String(80), nullable=True)
+    entidade_id = Column(Integer, nullable=True, index=True)
+    lida_em = Column(DateTime, nullable=True, index=True)
+    criado_em = Column(DateTime, default=datetime.now, nullable=False, index=True)

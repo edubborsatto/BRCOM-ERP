@@ -12,7 +12,8 @@ from app.database import SessionLocal
 from app.dependencies import require_permission
 from app.routers import (
     agenda, auth, clients, formulas, history, inventory, orders, products,
-    imports, quotes, reports, sales, sales_sheets, service_orders, users,
+    imports, notifications, quotes, reports, sales, sales_sheets,
+    service_orders, suggestions, users,
 )
 from app.security import validate_security_config
 from app.services import bootstrap_security
@@ -60,6 +61,8 @@ app.include_router(sales.router)
 app.include_router(reports.router)
 app.include_router(imports.router)
 app.include_router(sales_sheets.router)
+app.include_router(suggestions.router)
+app.include_router(notifications.router)
 
 app.mount(
     "/static",

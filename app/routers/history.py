@@ -15,7 +15,8 @@ router = APIRouter(prefix="/historico", tags=["Histórico de estoque"])
 @router.get("/sistema", response_model=List[schemas.AuditoriaSistemaResponse])
 def listar_auditoria_sistema(
     data_inicial: date | None = None, data_final: date | None = None,
-    usuario_id: int | None = None, modulo: str | None = None,
+    usuario_id: int | None = None, usuario: str | None = None,
+    modulo: str | None = None, registro: str | None = None,
     acao: str | None = None, limite: int = Query(default=500, ge=1, le=2000),
     db: Session = Depends(get_db), _=Depends(current_user),
 ):
@@ -26,6 +27,14 @@ def listar_auditoria_sistema(
         query = query.filter(models.AuditoriaSistema.criado_em < datetime.combine(data_final + timedelta(days=1), time.min))
     if usuario_id:
         query = query.filter(models.AuditoriaSistema.usuario_id == usuario_id)
+    if usuario:
+        query = query.filter(models.AuditoriaSistema.usuario_nome.ilike(f"%{usuario.strip()}%"))
+    if registro:
+        termo = registro.strip()
+        conditions = [models.AuditoriaSistema.entidade.ilike(f"%{termo}%")]
+        if termo.isdigit():
+            conditions.append(models.AuditoriaSistema.entidade_id == int(termo))
+        query = query.filter(or_(*conditions))
     if modulo:
         query = query.filter(models.AuditoriaSistema.categoria == modulo.upper())
     if acao:

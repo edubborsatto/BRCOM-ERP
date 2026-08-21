@@ -65,7 +65,7 @@ def listar_produtos(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(current_user),
 ):
-    query = db.query(models.Produto)
+    query = db.query(models.Produto).filter(models.Produto.ativo.is_(True))
     if tipo_item:
         query = query.filter(models.Produto.tipo_item == tipo_item)
     if busca:
@@ -131,17 +131,24 @@ def excluir_produto(
     produto = db.get(models.Produto, produto_id)
     if not produto:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
-    if produto.formula or db.query(models.FormulaComponente).filter(
-        models.FormulaComponente.materia_prima_id == produto_id
-    ).first():
-        raise HTTPException(status_code=409, detail="Produto vinculado a uma fórmula")
+    possui_vinculos = bool(
+        produto.formula
+        or db.query(models.FormulaComponente).filter(models.FormulaComponente.materia_prima_id == produto_id).first()
+        or db.query(models.OrcamentoItem).filter(models.OrcamentoItem.produto_id == produto_id).first()
+        or db.query(models.PedidoFuturoItem).filter(models.PedidoFuturoItem.produto_id == produto_id).first()
+        or db.query(models.PedidoFuturoMateriaPrima).filter(models.PedidoFuturoMateriaPrima.materia_prima_id == produto_id).first()
+    )
     db.add(models.HistoricoEstoque(
         produto_id=None, produto_nome=produto.nome, tipo_movimentacao="EXCLUSAO",
         quantidade=produto.quantidade_atual, saldo_anterior=produto.quantidade_atual,
         saldo_apos=0, motivo="Cadastro excluído pelo administrador",
         usuario_id=usuario.id, usuario_responsavel=usuario.nome,
     ))
-    audit(db, usuario, "PRODUTOS", "EXCLUIR", "produtos", produto.id, before={"codigo": produto.codigo, "nome": produto.nome})
-    db.delete(produto)
+    acao = "ARQUIVAR_COM_HISTORICO" if possui_vinculos else "EXCLUIR"
+    audit(db, usuario, "PRODUTOS", acao, "produtos", produto.id, before={"codigo": produto.codigo, "nome": produto.nome, "possui_vinculos": possui_vinculos})
+    if possui_vinculos:
+        produto.ativo = False
+    else:
+        db.delete(produto)
     db.commit()
-    return {"status": "success"}
+    return {"status": "success", "modo": "arquivado" if possui_vinculos else "excluido"}

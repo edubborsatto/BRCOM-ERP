@@ -34,7 +34,7 @@ def eventos(data_inicial: date | None = None, data_final: date | None = None,
             db: Session = Depends(get_db), _=Depends(agenda_access)):
     inicio = datetime.combine(data_inicial, time.min) if data_inicial else datetime.min
     fim = datetime.combine(data_final + timedelta(days=1), time.min) if data_final else datetime.max
-    result = [{"origem": "AGENDA", "id": c.id, "titulo": c.titulo, "data_hora": c.data_hora, "status": None, "detalhes": c.descricao}
+    result = [{"origem": "AGENDA", "id": c.id, "titulo": c.titulo, "data_hora": c.data_hora, "status": None, "detalhes": c.descricao, "descricao": c.descricao, "local": c.local}
               for c in db.query(models.Compromisso).filter(models.Compromisso.data_hora >= inicio, models.Compromisso.data_hora < fim)]
     pedidos = db.query(models.PedidoFuturo).filter(models.PedidoFuturo.cancelado_em.is_(None), models.PedidoFuturo.data_entrega >= inicio, models.PedidoFuturo.data_entrega < fim)
     result += [{"origem": "PEDIDO", "tipo": p.modalidade_entrega if p.venda_id and p.modalidade_entrega else "PEDIDO", "id": p.id, "titulo": f"{('Entrega' if p.modalidade_entrega == 'ENTREGA' else 'Retirada') if p.venda_id else 'Pedido'} #{p.id} — {p.cliente_nome}", "data_hora": p.data_entrega, "status": p.status, "detalhes": f"{p.produto_nome} · {p.quantidade}"}
