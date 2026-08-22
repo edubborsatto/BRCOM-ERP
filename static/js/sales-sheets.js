@@ -1,4 +1,4 @@
-import {$,api,date,esc,showError,toast} from './api.js?v=5.2.0';
+import {$,api,date,esc,showError,toast} from './api.js?v=5.4.0';
 
 let sheetType='NOTA_FISCAL';
 let rows=[];

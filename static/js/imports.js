@@ -1,4 +1,4 @@
-import {$,api,state,date,esc,money,qty,toast,showError} from './api.js?v=5.2.0';
+import {$,api,state,date,esc,money,qty,toast,showError} from './api.js?v=5.4.0';
 
 let activeImport=null;
 let displayedRecords=[];

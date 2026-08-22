@@ -27,9 +27,20 @@ class Usuario(Base):
     nome = Column(String, nullable=False)
     usuario_login = Column(String, unique=True, index=True, nullable=False)
     senha_hash = Column(String, nullable=False)
+    email = Column(String(255), nullable=True, index=True)
+    telefone = Column(String(40), nullable=True)
     tipo_usuario = Column(String(20), nullable=False, default="FUNCIONARIO", index=True)
     ativo = Column(Boolean, nullable=False, default=True, index=True)
+    tentativas_login = Column(Integer, nullable=False, default=0)
+    bloqueado_ate = Column(DateTime, nullable=True, index=True)
+    ultima_falha_login_em = Column(DateTime, nullable=True)
+    ultimo_login_em = Column(DateTime, nullable=True)
+    codigo_recuperacao_hash = Column(String(64), nullable=True)
+    codigo_recuperacao_expira_em = Column(DateTime, nullable=True)
+    codigo_recuperacao_tentativas = Column(Integer, nullable=False, default=0)
+    recuperacao_solicitada_em = Column(DateTime, nullable=True)
     pode_gerenciar_usuarios = Column(Boolean, default=False)
+    pode_gerenciar_funcionarios = Column(Boolean, default=False)
     pode_alterar_custos = Column(Boolean, default=False)
     pode_movimentar_estoque = Column(Boolean, default=False)
     pode_gerenciar_clientes = Column(Boolean, default=False)
@@ -52,6 +63,78 @@ class Usuario(Base):
     pode_colocar_observacao = Column(Boolean, default=False)
     pode_enviar_sugestoes = Column(Boolean, default=True)
     pode_administrar_sugestoes = Column(Boolean, default=False)
+
+
+class Funcionario(Base):
+    __tablename__ = "funcionarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(
+        Integer,
+        ForeignKey("usuarios.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    matricula = Column(String(40), nullable=True, unique=True, index=True)
+    nome_completo = Column(String(160), nullable=False, index=True)
+    nome_social = Column(String(160), nullable=True)
+    cpf = Column(String(11), nullable=False, unique=True, index=True)
+    rg = Column(String(30), nullable=False, index=True)
+    orgao_emissor_rg = Column(String(30), nullable=True)
+    uf_rg = Column(String(2), nullable=True)
+    data_nascimento = Column(Date, nullable=False)
+    email_pessoal = Column(String(255), nullable=False, index=True)
+    email_corporativo = Column(String(255), nullable=True, index=True)
+    celular = Column(String(20), nullable=False)
+    telefone = Column(String(20), nullable=True)
+    cep = Column(String(8), nullable=False)
+    logradouro = Column(String(255), nullable=False)
+    numero = Column(String(30), nullable=False)
+    complemento = Column(String(120), nullable=True)
+    bairro = Column(String(120), nullable=False)
+    cidade = Column(String(120), nullable=False, index=True)
+    uf = Column(String(2), nullable=False, index=True)
+    pis_pasep = Column(String(20), nullable=True, unique=True)
+    ctps_numero = Column(String(30), nullable=True)
+    ctps_serie = Column(String(20), nullable=True)
+    ctps_uf = Column(String(2), nullable=True)
+    departamento = Column(String(120), nullable=False, index=True)
+    cargo = Column(String(120), nullable=False, index=True)
+    tipo_contrato = Column(String(30), nullable=False, default="CLT", index=True)
+    data_admissao = Column(Date, nullable=False, index=True)
+    salario_base = Column(MONEY, nullable=True)
+    jornada_semanal = Column(Numeric(5, 2), nullable=True)
+    gestor = Column(String(160), nullable=True)
+    contato_emergencia_nome = Column(String(160), nullable=False)
+    contato_emergencia_parentesco = Column(String(80), nullable=False)
+    contato_emergencia_telefone = Column(String(20), nullable=False)
+    status = Column(String(20), nullable=False, default="ATIVO", index=True)
+    data_desligamento = Column(Date, nullable=True, index=True)
+    motivo_desligamento = Column(Text, nullable=True)
+    observacoes = Column(Text, nullable=True)
+    criado_em = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    atualizado_em = Column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now,
+        nullable=False,
+        index=True,
+    )
+    criado_por_id = Column(
+        Integer,
+        ForeignKey("usuarios.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    criado_por_nome = Column(String(120), nullable=False)
+    atualizado_por_id = Column(
+        Integer,
+        ForeignKey("usuarios.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    atualizado_por_nome = Column(String(120), nullable=False)
+
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
 
 
 class AuditoriaSistema(Base):
@@ -363,6 +446,9 @@ class PedidoFuturo(Base):
     cancelado_por_nome = Column(String(120), nullable=True)
     observacoes = Column(Text, nullable=True)
     atualizado_em = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+    concluido_em = Column(DateTime, nullable=True, index=True)
+    concluido_por_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
+    concluido_por_nome = Column(String(120), nullable=True)
 
     cliente = relationship("Cliente")
     venda = relationship("Venda", foreign_keys=[venda_id])

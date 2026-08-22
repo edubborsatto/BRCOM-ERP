@@ -143,7 +143,7 @@ def test_interface_tem_menu_movel_e_arquivos_modulares(client):
     assert pagina.status_code == 200
     assert 'id="openMenu"' in pagina.text
     assert 'id="menuBackdrop"' in pagina.text
-    assert '/static/js/app.js?v=5.2.0' in pagina.text
+    assert '/static/js/app.js?v=5.4.0' in pagina.text
     assert 'data-tab="pedidosTab"' in pagina.text
     assert 'data-tab="formulasTab"' not in pagina.text
     assert 'data-tab="orcamentosTab"' not in pagina.text

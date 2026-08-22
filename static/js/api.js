@@ -10,10 +10,10 @@ export function toast(message, error=false){const el=$('toast');el.textContent=m
 export async function api(url, options={}){
   const isForm=typeof FormData!=='undefined'&&options.body instanceof FormData;
   const response=await fetch(url,{credentials:'same-origin',...options,headers:{...(options.body&&!isForm?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});
-  if(response.status===401){if(!['/api/me','/api/login'].includes(url))location.reload();throw new Error('Sessão expirada')}
+  if(response.status===401&&!['/api/me','/api/login'].includes(url)){location.reload();throw new Error('Sessão expirada')}
   const contentType=response.headers.get('content-type')||'';
   const body=contentType.includes('json')?await response.json():await response.text();
-  if(!response.ok)throw new Error(typeof body==='object'?body.detail||'Não foi possível concluir':body);
+  if(!response.ok){const detail=typeof body==='object'?body.detail:null,message=typeof detail==='object'?detail.message:detail;const error=new Error(message||body||'Não foi possível concluir');error.status=response.status;error.code=typeof detail==='object'?detail.code:null;error.data=body;throw error}
   return body;
 }
 export const payload = data => ({method:'POST',body:JSON.stringify(data)});

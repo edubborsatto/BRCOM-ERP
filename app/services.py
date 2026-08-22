@@ -15,6 +15,7 @@ from app.security import hash_password, is_password_hash
 ROLE_PERMISSIONS = {
     "DESENVOLVEDOR": {
         "pode_gerenciar_usuarios": True,
+        "pode_gerenciar_funcionarios": True,
         "pode_alterar_custos": True,
         "pode_movimentar_estoque": True,
         "pode_gerenciar_clientes": True,
@@ -35,6 +36,7 @@ ROLE_PERMISSIONS = {
     },
     "DONO": {
         "pode_gerenciar_usuarios": True,
+        "pode_gerenciar_funcionarios": True,
         "pode_alterar_custos": True,
         "pode_movimentar_estoque": True,
         "pode_gerenciar_clientes": True,
@@ -55,6 +57,7 @@ ROLE_PERMISSIONS = {
     },
     "FUNCIONARIO": {
         "pode_gerenciar_usuarios": False,
+        "pode_gerenciar_funcionarios": False,
         "pode_alterar_custos": False,
         "pode_movimentar_estoque": False,
         "pode_gerenciar_clientes": False,
@@ -86,8 +89,8 @@ def audit_user_change(db: Session, actor, action: str, target, before=None, afte
         acao=action,
         entidade="usuarios",
         entidade_id=target.id,
-        dados_anteriores=json.dumps(before, ensure_ascii=False) if before else None,
-        dados_novos=json.dumps(after, ensure_ascii=False) if after else None,
+        dados_anteriores=json.dumps(before, ensure_ascii=False, default=str) if before else None,
+        dados_novos=json.dumps(after, ensure_ascii=False, default=str) if after else None,
         usuario_id=actor.id,
         usuario_nome=actor.nome,
     ))
@@ -116,9 +119,14 @@ def public_user(usuario: models.Usuario) -> dict:
         "id": usuario.id,
         "nome": usuario.nome,
         "usuario_login": usuario.usuario_login,
+        "email": usuario.email,
+        "telefone": usuario.telefone,
         "tipo_usuario": usuario.tipo_usuario,
         "ativo": usuario.ativo,
+        "bloqueado_ate": usuario.bloqueado_ate,
+        "ultimo_login_em": usuario.ultimo_login_em,
         "pode_gerenciar_usuarios": usuario.pode_gerenciar_usuarios,
+        "pode_gerenciar_funcionarios": usuario.pode_gerenciar_funcionarios,
         "pode_alterar_custos": usuario.pode_alterar_custos,
         "pode_movimentar_estoque": usuario.pode_movimentar_estoque,
         "pode_gerenciar_clientes": usuario.pode_gerenciar_clientes,
@@ -167,6 +175,8 @@ def bootstrap_security(db: Session) -> None:
             )
             db.add(usuario)
         usuario.senha_hash = hash_password(password)
+        usuario.email = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "").strip().lower() or usuario.email
+        usuario.telefone = os.getenv("BOOTSTRAP_ADMIN_PHONE", "").strip() or usuario.telefone
         usuario.tipo_usuario = "DESENVOLVEDOR"
         usuario.ativo = True
         for permission, allowed in role_permissions("DESENVOLVEDOR").items():

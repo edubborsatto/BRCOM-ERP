@@ -1,9 +1,9 @@
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import String, cast, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app import models, schemas
@@ -187,6 +187,48 @@ def listar_pedidos(db: Session = Depends(get_db), _=Depends(current_user)):
         models.PedidoFuturo.fila_posicao.asc(),
         models.PedidoFuturo.data_entrega.asc(),
     ).all()
+
+
+@router.get("/entregues", response_model=List[schemas.PedidoFuturoResponse])
+def listar_pedidos_entregues(
+    busca: str | None = None,
+    modalidade: str | None = None,
+    data_inicial: date | None = None,
+    data_final: date | None = None,
+    limite: int = Query(default=300, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    _: models.Usuario = Depends(current_user),
+):
+    query = _query(db).filter(
+        models.PedidoFuturo.cancelado_em.is_(None),
+        models.PedidoFuturo.status.in_(("ENTREGUE", "RETIRADO")),
+    )
+    if modalidade:
+        modalidade = modalidade.upper()
+        if modalidade not in {"ENTREGA", "RETIRADA"}:
+            raise HTTPException(status_code=422, detail="Modalidade inválida")
+        query = query.filter(models.PedidoFuturo.modalidade_entrega == modalidade)
+    if data_inicial:
+        query = query.filter(
+            models.PedidoFuturo.concluido_em >= datetime.combine(data_inicial, time.min)
+        )
+    if data_final:
+        query = query.filter(
+            models.PedidoFuturo.concluido_em < datetime.combine(data_final + timedelta(days=1), time.min)
+        )
+    if busca and busca.strip():
+        pattern = f"%{busca.strip()}%"
+        query = query.filter(or_(
+            models.PedidoFuturo.cliente_nome.ilike(pattern),
+            models.PedidoFuturo.produto_nome.ilike(pattern),
+            models.PedidoFuturo.numero_documento.ilike(pattern),
+            cast(models.PedidoFuturo.id, String).ilike(pattern),
+            models.PedidoFuturo.itens.any(models.PedidoFuturoItem.produto_nome.ilike(pattern)),
+        ))
+    return query.order_by(
+        models.PedidoFuturo.concluido_em.desc(),
+        models.PedidoFuturo.id.desc(),
+    ).limit(limite).all()
 
 
 @router.put("/fila", response_model=List[schemas.PedidoFuturoResponse])
@@ -405,6 +447,10 @@ def alterar_status(pedido_id: int, dados: schemas.AlteracaoStatusPedido,
     if usuario.tipo_usuario != "DESENVOLVEDOR" and permissao and not getattr(usuario, permissao, False):
         raise HTTPException(status_code=403, detail="Sem permissão para executar esta etapa")
     pedido.status = dados.status
+    if dados.status in {"ENTREGUE", "RETIRADO"}:
+        pedido.concluido_em = datetime.now()
+        pedido.concluido_por_id = usuario.id
+        pedido.concluido_por_nome = usuario.nome
     if dados.observacao:
         pedido.observacoes = (pedido.observacoes + "\n" if pedido.observacoes else "") + dados.observacao
     audit(db, usuario, "PEDIDOS", "ALTERAR_STATUS", "pedidos_futuros", pedido.id, before={"status": atual}, after={"status": dados.status, "observacao": dados.observacao})

@@ -140,4 +140,4 @@ def test_interface_de_pedidos_tem_divisao_materiais_e_fila(client):
     assert "data-move-order" in script
     assert "dragstart" in script
     assert "/pedidos/fila" in script
-    assert '/static/js/app.js?v=5.2.0' in page
+    assert '/static/js/app.js?v=5.4.0' in page
