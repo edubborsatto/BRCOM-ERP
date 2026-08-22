@@ -88,10 +88,39 @@ def test_chat_de_sugestao_conversa_com_openai_e_preserva_historico_local(
     assert response.json()["assistant_message"] == "Qual etapa deve melhorar?"
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["json"]["store"] is False
+    assert captured["json"]["text"]["format"]["type"] == "json_schema"
+    assert captured["json"]["text"]["format"]["strict"] is True
     assert "chave-somente-de-teste" not in str(captured["json"])
     saved = admin_client.get(f"/sugestoes/{draft['id']}").json()
     assert [message["autor_tipo"] for message in saved["mensagens"]] == ["USUARIO", "IA"]
     assert saved["mensagens"][1]["conteudo"] == "Qual etapa deve melhorar?"
+
+
+def test_falha_da_openai_mostra_diagnostico_so_para_administracao(
+    admin_client, monkeypatch,
+):
+    def fake_openai_post(url, headers, json, timeout):
+        request = httpx.Request("POST", url)
+        return httpx.Response(
+            401,
+            request=request,
+            headers={"x-request-id": "req_brcom_test"},
+            json={"error": {"code": "invalid_api_key", "message": "invalid"}},
+        )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "chave-invalida-de-teste")
+    monkeypatch.setattr("app.ai_suggestions.httpx.post", fake_openai_post)
+    draft = admin_client.post("/sugestoes/").json()
+    response = admin_client.post(
+        f"/sugestoes/{draft['id']}/mensagens",
+        json={"conteudo": "Quero conferir a causa de uma falha."},
+    )
+    assert response.status_code == 200
+    assert response.json()["ai_available"] is False
+    assert response.json()["error_code"] == "authentication_or_permission"
+    assert "OpenAI HTTP 401" in response.json()["diagnostic"]
+    notices = admin_client.get("/notificacoes/").json()
+    assert any(item["tipo"] == "IA_ERRO" and item["entidade_id"] == draft["id"] for item in notices)
 
 
 def test_exclusao_definitiva_de_venda_revalida_senha(admin_client):
@@ -126,6 +155,8 @@ def test_interface_expoe_agenda_sugestoes_notificacoes_e_confirmacao_critica(adm
     styles = admin_client.get("/static/css/app.css").text
     assert 'id="agendaMonth"' in page and 'id="agendaYear"' in page
     assert 'id="sugestoesTab"' in page and 'id="notificacoesTab"' in page
+    assert 'id="entreguesTab"' in page and 'id="deliveredOrderFilters"' in page
+    assert 'id="recoveryRequestForm"' in page and 'id="recoveryCodeForm"' in page
     assert 'id="suggestionChat"' in page and 'id="suggestionChatMinimize"' in page
     assert 'data-open-suggestion-chat' in page and 'data-theme-toggle' in page
     assert 'id="criticalActionPassword"' in page
@@ -145,6 +176,6 @@ def test_modulos_javascript_compartilham_a_mesma_versao_da_api(admin_client):
     for module_name in module_names:
         source = admin_client.get(f"/static/js/{module_name}").text
         if "./api.js?v=" in source:
-            assert "./api.js?v=5.2.0" in source
+            assert "./api.js?v=5.4.0" in source
             assert "./api.js?v=5.1.0" not in source
             assert "./api.js?v=6.0.0" not in source

@@ -1,6 +1,7 @@
 """Dependências de autenticação e autorização das rotas."""
 
 from collections.abc import Callable
+from datetime import datetime, timezone
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -25,6 +26,12 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> models.Usua
     usuario = db.query(models.Usuario).filter(models.Usuario.id == user_id).first()
     if not usuario or not usuario.ativo:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inválido")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if usuario.bloqueado_ate and usuario.bloqueado_ate > now:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Conta temporariamente bloqueada por segurança",
+        )
     return usuario
 
 

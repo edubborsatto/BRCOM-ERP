@@ -13,8 +13,9 @@ Esta versão invalida senhas antigas que estavam salvas em texto puro. Antes de 
 5. Adicione `BOOTSTRAP_ADMIN_LOGIN` com o login do administrador, por exemplo `eduardo`.
 6. Adicione `BOOTSTRAP_ADMIN_NAME` com o nome do administrador.
 7. Adicione `BOOTSTRAP_ADMIN_PASSWORD` com uma senha nova, forte e com pelo menos 12 caracteres.
-8. Confirme que `DATABASE_URL` continua com a conexão do Neon.
-9. Salve. Não publique os valores dessas variáveis no GitHub.
+8. Adicione `BOOTSTRAP_ADMIN_EMAIL` para permitir a recuperação da conta administrativa.
+9. Confirme que `DATABASE_URL` continua com a conexão do Neon.
+10. Salve. Não publique os valores dessas variáveis no GitHub.
 
 No Render, mantenha também:
 
@@ -256,3 +257,50 @@ executados na mesma transação, e a auditoria empresarial é preservada.
 Produtos ainda vinculados ao histórico são arquivados e deixam de aparecer na
 operação, evitando quebrar documentos antigos. Produtos sem vínculos e
 fórmulas podem ser excluídos normalmente.
+
+## Interface 5.3.0 — identidade, proteção de acesso e entregues
+
+A interface mantém o estilo tecnológico e passa a usar a identidade visual da
+Brasil Comercial: azul profundo, branco e amarelo/laranja. O ERP permanece
+exclusivo para Dono, Desenvolvedor e Funcionário; não existe cadastro ou portal
+de cliente.
+
+Após cinco senhas incorretas, a conta é bloqueada temporariamente, a ocorrência
+é auditada com IP e navegador informados e os administradores recebem uma
+notificação. O usuário pode solicitar um código de seis dígitos no e-mail
+cadastrado, com validade curta e limite de tentativas. Administradores também
+podem desbloquear a conta pela área Usuários.
+
+O envio do código usa SMTP e requer `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` e,
+quando o servidor exigir, `SMTP_USERNAME` e `SMTP_PASSWORD`. Use
+`SMTP_STARTTLS=true` para a porta 587 ou `SMTP_SSL=true` para conexão SSL. Sem
+SMTP, o bloqueio e os alertas continuam funcionando e o desbloqueio deve ser
+feito por um administrador.
+
+A aba **Pedidos entregues** consulta os próprios pedidos finalizados, sem copiar
+dados. Ela pesquisa por cliente, produto, pedido ou documento e filtra por data
+real de conclusão e modalidade. O encerramento registra data, hora e responsável.
+
+O assistente de sugestões passa a pedir saída estruturada à OpenAI e registra um
+diagnóstico administrativo sem expor a chave. Erros de autenticação, limite,
+rede, serviço ou formato são diferenciados, e a conversa local é preservada.
+
+## Funcionários e logotipo oficial na versão 5.4.0
+
+A aba **Funcionários** mantém o cadastro funcional separado das contas de
+acesso. Ela reúne identificação (CPF validado, RG e matrícula), contatos,
+endereço, vínculo profissional, PIS/CTPS, contato de emergência, situação e
+observações. A lista mascara o CPF; o cadastro completo exige a permissão
+específica **Gerenciar funcionários**.
+
+O vínculo com uma conta do ERP é opcional. Quando existe, nome, e-mail de
+recuperação e celular são sincronizados automaticamente. O desligamento
+preserva o histórico e bloqueia a conta vinculada; uma posterior reativação do
+cadastro não libera o login automaticamente. A exclusão definitiva só é
+permitida para Dono ou Desenvolvedor, depois do desligamento, com motivo e nova
+confirmação da senha. Toda criação, edição, mudança de situação e exclusão fica
+na auditoria com documentos e contatos mascarados.
+
+O login e o canto superior esquerdo usam o arquivo SVG oficial da Brasil
+Comercial em `static/img/brasil-comercial-logo.svg`. O SVG mantém transparência
+fora do desenho e não depende do fundo branco de uma captura de tela.

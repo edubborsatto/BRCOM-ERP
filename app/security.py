@@ -48,6 +48,18 @@ def verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 
+def recovery_code_digest(user_id: int, code: str) -> str:
+    """Protege o código curto com o segredo do servidor antes de persistir."""
+    message = f"brcom-recovery:{user_id}:{code}".encode("utf-8")
+    return hmac.new(_session_secret().encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+
+def verify_recovery_code(user_id: int, code: str, stored_digest: str | None) -> bool:
+    if not stored_digest:
+        return False
+    return hmac.compare_digest(recovery_code_digest(user_id, code), stored_digest)
+
+
 def _session_secret() -> str:
     secret = os.getenv("SESSION_SECRET", "")
     if len(secret) < 32:

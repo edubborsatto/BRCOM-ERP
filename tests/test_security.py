@@ -22,6 +22,69 @@ def test_login_incorreto_e_rejeitado(client):
     assert resposta.status_code == 401
 
 
+def test_cinco_erros_bloqueiam_recuperacao_por_email_e_alertam_admin(
+    client, admin_client, monkeypatch,
+):
+    password = "SenhaBloqueioTeste123"
+    created = admin_client.post(
+        "/usuarios/",
+        json={
+            "nome": "Funcionário Protegido",
+            "usuario_login": "func-protegido",
+            "email": "protegido@brcom.test",
+            "senha": password,
+            "tipo_usuario": "FUNCIONARIO",
+        },
+    )
+    assert created.status_code == 201
+    admin_client.post("/api/logout")
+
+    for attempt in range(1, 6):
+        denied = client.post(
+            "/api/login",
+            json={"usuario_login": "func-protegido", "senha": "senha-errada"},
+        )
+        assert denied.status_code == (423 if attempt == 5 else 401)
+    assert denied.json()["detail"]["code"] == "ACCOUNT_LOCKED"
+    assert denied.json()["detail"]["recovery_available"] is True
+    assert client.post(
+        "/api/login",
+        json={"usuario_login": "func-protegido", "senha": password},
+    ).status_code == 423
+
+    delivered = {}
+    monkeypatch.setattr(
+        "app.routers.auth.send_recovery_code",
+        lambda email, code: delivered.update({"email": email, "code": code}),
+    )
+    requested = client.post(
+        "/api/recuperacao/solicitar",
+        json={"usuario_login": "func-protegido", "email": "protegido@brcom.test"},
+    )
+    assert requested.status_code == 202
+    assert delivered["email"] == "protegido@brcom.test"
+    assert len(delivered["code"]) == 6
+    unlocked = client.post(
+        "/api/recuperacao/confirmar",
+        json={"usuario_login": "func-protegido", "codigo": delivered["code"]},
+    )
+    assert unlocked.status_code == 200
+    assert client.post(
+        "/api/login",
+        json={"usuario_login": "func-protegido", "senha": password},
+    ).status_code == 200
+    client.post("/api/logout")
+
+    assert client.post(
+        "/api/login",
+        json={"usuario_login": "admin", "senha": "SenhaSeguraTeste123"},
+    ).status_code == 200
+    notices = client.get("/notificacoes/").json()
+    assert any("bloqueada" in item["titulo"].lower() for item in notices)
+    audit = client.get("/historico/sistema?modulo=SEGURANCA").json()
+    assert any(item["acao"] == "LOGIN_BLOQUEADO" for item in audit)
+
+
 def test_senha_nunca_e_retornada(admin_client):
     resposta = admin_client.post(
         "/usuarios/",

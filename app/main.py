@@ -11,7 +11,7 @@ from app import models
 from app.database import SessionLocal
 from app.dependencies import require_permission
 from app.routers import (
-    agenda, auth, clients, formulas, history, inventory, orders, products,
+    agenda, auth, clients, employees, formulas, history, inventory, orders, products,
     imports, notifications, quotes, reports, sales, sales_sheets,
     service_orders, suggestions, users,
 )
@@ -36,7 +36,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="BRCom ERP",
-    version="5.2.0",
+    version="5.4.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -50,6 +50,7 @@ app.include_router(auth.router)
 app.include_router(products.router)
 app.include_router(history.router)
 app.include_router(users.router)
+app.include_router(employees.router)
 app.include_router(clients.router)
 app.include_router(agenda.router)
 app.include_router(orders.router)

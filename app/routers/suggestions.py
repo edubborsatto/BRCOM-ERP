@@ -50,6 +50,30 @@ def _notify_admins(db, suggestion, title, message):
         ))
 
 
+def _notify_ai_failure(db, suggestion, exc):
+    admins = db.query(models.Usuario).filter(
+        models.Usuario.ativo.is_(True),
+        models.Usuario.pode_administrar_sugestoes.is_(True),
+    ).all()
+    for admin in admins:
+        already_open = db.query(models.Notificacao).filter(
+            models.Notificacao.usuario_id == admin.id,
+            models.Notificacao.tipo == "IA_ERRO",
+            models.Notificacao.entidade == "sugestoes",
+            models.Notificacao.entidade_id == suggestion.id,
+            models.Notificacao.lida_em.is_(None),
+        ).first()
+        if not already_open:
+            db.add(models.Notificacao(
+                usuario_id=admin.id,
+                tipo="IA_ERRO",
+                titulo="Falha no assistente de sugestões",
+                mensagem=exc.diagnostic,
+                entidade="sugestoes",
+                entidade_id=suggestion.id,
+            ))
+
+
 @router.post("/", response_model=schemas.SugestaoResponse, status_code=201)
 def iniciar(db: Session = Depends(get_db), user=Depends(current_user)):
     if not user.pode_enviar_sugestoes:
@@ -84,8 +108,21 @@ def conversar(suggestion_id: int, data: schemas.MensagemSugestaoCreate,
     try:
         result = continue_interview(conversation)
     except SuggestionAIUnavailable as exc:
+        _notify_ai_failure(db, item, exc)
+        audit(
+            db, user, "SUGESTOES", "IA_INDISPONIVEL", "sugestoes", item.id,
+            after={"codigo": exc.code, "request_id": exc.request_id},
+        )
         db.commit()
-        return {"ai_available": False, "message": str(exc), "ready": False}
+        response = {
+            "ai_available": False,
+            "message": str(exc),
+            "ready": False,
+            "error_code": exc.code,
+        }
+        if _can_manage(user):
+            response["diagnostic"] = exc.diagnostic
+        return response
     db.add(models.MensagemSugestao(
         sugestao_id=item.id, autor_tipo="IA", conteudo=result["assistant_message"],
     ))

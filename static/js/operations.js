@@ -1,5 +1,5 @@
-import {$,api,state,esc,money,qty,date,optionList,payload,toast,showError,criticalConfirmation} from './api.js?v=5.2.0';
-import {loadProducts} from './catalog.js?v=5.2.0';
+import {$,api,state,esc,money,qty,date,optionList,payload,toast,showError,criticalConfirmation} from './api.js?v=5.4.0';
+import {loadProducts} from './catalog.js?v=5.4.0';
 
 function badge(status){const cls=status==='APROVADO'||status==='CONCLUIDA'?'badge-green':status==='REJEITADO'?'badge-red':'badge-yellow';return `<span class="badge ${cls}">${esc(status)}</span>`}
 function addQuoteItem(){const finished=state.products.filter(p=>p.tipo_item==='PRODUTO_ACABADO');const row=document.createElement('div');row.className='quote-row';row.innerHTML=`<label>Produto<select class="quote-product">${optionList(finished)}</select></label><label>Quantidade<input class="quote-qty" type="number" step="0.0001" min="0.0001" value="1"></label><label>Preço unitário<input class="quote-price" type="number" step="0.01" min="0" placeholder="Automático"></label><button type="button" class="btn-danger"><i class="fa-solid fa-trash"></i></button>`;row.querySelector('button').onclick=()=>row.remove();$('quoteItems').appendChild(row)}

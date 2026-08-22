@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Optional
@@ -11,6 +12,7 @@ class OrmModel(BaseModel):
 
 class UsuarioPermissions(BaseModel):
     pode_gerenciar_usuarios: bool = False
+    pode_gerenciar_funcionarios: bool = False
     pode_alterar_custos: bool = False
     pode_movimentar_estoque: bool = False
     pode_gerenciar_clientes: bool = False
@@ -38,8 +40,15 @@ class UsuarioPermissions(BaseModel):
 class UsuarioBase(UsuarioPermissions):
     nome: str
     usuario_login: str
+    email: Optional[str] = Field(default=None, max_length=255)
+    telefone: Optional[str] = Field(default=None, max_length=40)
     tipo_usuario: Literal["DESENVOLVEDOR", "DONO", "FUNCIONARIO"] = "FUNCIONARIO"
     ativo: bool = True
+
+    @field_validator("email", "telefone")
+    @classmethod
+    def limpar_contato(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if value and value.strip() else None
 
 
 class UsuarioCreate(UsuarioBase):
@@ -54,6 +63,216 @@ class UsuarioUpdate(UsuarioBase):
 
 class UsuarioResponse(UsuarioBase, OrmModel):
     id: int
+    bloqueado_ate: Optional[datetime] = None
+    ultimo_login_em: Optional[datetime] = None
+
+
+def _somente_digitos(value: str) -> str:
+    return re.sub(r"\D", "", value)
+
+
+def _cpf_valido(cpf: str) -> bool:
+    if len(cpf) != 11 or cpf == cpf[0] * 11:
+        return False
+    for tamanho in (9, 10):
+        soma = sum(int(cpf[indice]) * (tamanho + 1 - indice) for indice in range(tamanho))
+        digito = (soma * 10 % 11) % 10
+        if digito != int(cpf[tamanho]):
+            return False
+    return True
+
+
+class FuncionarioBase(BaseModel):
+    matricula: Optional[str] = Field(default=None, max_length=40)
+    usuario_id: Optional[int] = Field(default=None, ge=1)
+    nome_completo: str = Field(min_length=2, max_length=160)
+    nome_social: Optional[str] = Field(default=None, max_length=160)
+    cpf: str = Field(min_length=11, max_length=18)
+    rg: str = Field(min_length=3, max_length=30)
+    orgao_emissor_rg: Optional[str] = Field(default=None, max_length=30)
+    uf_rg: Optional[str] = Field(default=None, min_length=2, max_length=2)
+    data_nascimento: date
+    email_pessoal: str = Field(min_length=5, max_length=255)
+    email_corporativo: Optional[str] = Field(default=None, max_length=255)
+    celular: str = Field(min_length=10, max_length=20)
+    telefone: Optional[str] = Field(default=None, max_length=20)
+    cep: str = Field(min_length=8, max_length=10)
+    logradouro: str = Field(min_length=2, max_length=255)
+    numero: str = Field(min_length=1, max_length=30)
+    complemento: Optional[str] = Field(default=None, max_length=120)
+    bairro: str = Field(min_length=2, max_length=120)
+    cidade: str = Field(min_length=2, max_length=120)
+    uf: str = Field(min_length=2, max_length=2)
+    pis_pasep: Optional[str] = Field(default=None, max_length=20)
+    ctps_numero: Optional[str] = Field(default=None, max_length=30)
+    ctps_serie: Optional[str] = Field(default=None, max_length=20)
+    ctps_uf: Optional[str] = Field(default=None, min_length=2, max_length=2)
+    departamento: str = Field(min_length=2, max_length=120)
+    cargo: str = Field(min_length=2, max_length=120)
+    tipo_contrato: Literal["CLT", "PJ", "ESTAGIO", "TEMPORARIO", "APRENDIZ", "OUTRO"] = "CLT"
+    data_admissao: date
+    salario_base: Optional[Decimal] = Field(default=None, ge=0)
+    jornada_semanal: Optional[Decimal] = Field(default=None, ge=0, le=60)
+    gestor: Optional[str] = Field(default=None, max_length=160)
+    contato_emergencia_nome: str = Field(min_length=2, max_length=160)
+    contato_emergencia_parentesco: str = Field(min_length=2, max_length=80)
+    contato_emergencia_telefone: str = Field(min_length=10, max_length=20)
+    status: Literal["ATIVO", "DESLIGADO"] = "ATIVO"
+    data_desligamento: Optional[date] = None
+    motivo_desligamento: Optional[str] = Field(default=None, max_length=2000)
+    observacoes: Optional[str] = Field(default=None, max_length=5000)
+
+    @field_validator(
+        "matricula", "nome_completo", "nome_social", "rg", "orgao_emissor_rg",
+        "logradouro", "numero", "complemento", "bairro", "cidade", "departamento",
+        "cargo", "gestor", "contato_emergencia_nome", "contato_emergencia_parentesco",
+        "motivo_desligamento", "observacoes",
+        mode="before",
+    )
+    @classmethod
+    def limpar_textos(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    @field_validator("matricula")
+    @classmethod
+    def normalizar_matricula(cls, value: Optional[str]) -> Optional[str]:
+        return value.upper() if value else None
+
+    @field_validator("cpf")
+    @classmethod
+    def validar_cpf(cls, value: str) -> str:
+        digits = _somente_digitos(value)
+        if not _cpf_valido(digits):
+            raise ValueError("CPF inválido")
+        return digits
+
+    @field_validator("cep")
+    @classmethod
+    def validar_cep(cls, value: str) -> str:
+        digits = _somente_digitos(value)
+        if len(digits) != 8:
+            raise ValueError("CEP deve ter 8 dígitos")
+        return digits
+
+    @field_validator("celular", "telefone", "contato_emergencia_telefone")
+    @classmethod
+    def validar_telefone(cls, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        digits = _somente_digitos(value)
+        if len(digits) not in {10, 11}:
+            raise ValueError("Telefone deve conter DDD e 10 ou 11 dígitos")
+        return digits
+
+    @field_validator("pis_pasep")
+    @classmethod
+    def validar_pis(cls, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        digits = _somente_digitos(value)
+        if len(digits) != 11:
+            raise ValueError("PIS/PASEP deve ter 11 dígitos")
+        return digits
+
+    @field_validator("email_pessoal", "email_corporativo")
+    @classmethod
+    def validar_email(cls, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        cleaned = value.strip().lower()
+        if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", cleaned):
+            raise ValueError("E-mail inválido")
+        return cleaned
+
+    @field_validator("uf", "uf_rg", "ctps_uf")
+    @classmethod
+    def normalizar_uf(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip().upper() if value else None
+
+    @model_validator(mode="after")
+    def validar_vinculo_e_datas(self):
+        today = date.today()
+        age = today.year - self.data_nascimento.year - (
+            (today.month, today.day) < (self.data_nascimento.month, self.data_nascimento.day)
+        )
+        if age < 14:
+            raise ValueError("O funcionário deve ter pelo menos 14 anos")
+        if self.data_admissao < self.data_nascimento:
+            raise ValueError("Data de admissão não pode ser anterior ao nascimento")
+        if self.status == "DESLIGADO":
+            if not self.data_desligamento or not self.motivo_desligamento:
+                raise ValueError("Informe data e motivo do desligamento")
+            if self.data_desligamento < self.data_admissao:
+                raise ValueError("Data de desligamento não pode ser anterior à admissão")
+            if self.data_desligamento > today:
+                raise ValueError("Data de desligamento não pode ser futura")
+        else:
+            self.data_desligamento = None
+            self.motivo_desligamento = None
+        return self
+
+
+class FuncionarioCreate(FuncionarioBase):
+    pass
+
+
+class FuncionarioUpdate(FuncionarioBase):
+    pass
+
+
+class FuncionarioStatusUpdate(BaseModel):
+    status: Literal["ATIVO", "DESLIGADO"]
+    data_desligamento: Optional[date] = None
+    motivo: Optional[str] = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def validar_desligamento(self):
+        if self.status == "DESLIGADO" and not self.motivo:
+            raise ValueError("Informe o motivo do desligamento")
+        return self
+
+
+class FuncionarioResumo(OrmModel):
+    id: int
+    matricula: str
+    nome_completo: str
+    nome_social: Optional[str] = None
+    cpf_mascarado: str
+    celular: str
+    email_corporativo: Optional[str] = None
+    departamento: str
+    cargo: str
+    tipo_contrato: str
+    status: str
+    data_admissao: date
+    data_desligamento: Optional[date] = None
+    usuario_id: Optional[int] = None
+    usuario_login: Optional[str] = None
+    usuario_ativo: Optional[bool] = None
+    atualizado_em: datetime
+
+
+class FuncionarioResponse(FuncionarioBase, OrmModel):
+    id: int
+    matricula: str
+    usuario_nome: Optional[str] = None
+    usuario_login: Optional[str] = None
+    usuario_ativo: Optional[bool] = None
+    criado_em: datetime
+    atualizado_em: datetime
+    criado_por_nome: str
+    atualizado_por_nome: str
+
+
+class UsuarioVinculavelResponse(BaseModel):
+    id: int
+    nome: str
+    usuario_login: str
+    ativo: bool
+    funcionario_id: Optional[int] = None
 
 
 class AuditoriaSistemaResponse(OrmModel):
@@ -507,6 +726,8 @@ class PedidoFuturoResponse(OrmModel):
     cancelado_por_nome: Optional[str] = None
     itens: list[PedidoItemResponse] = Field(default_factory=list)
     observacoes: Optional[str] = None
+    concluido_em: Optional[datetime] = None
+    concluido_por_nome: Optional[str] = None
 
 
 class AlteracaoStatusPedido(BaseModel):
@@ -551,6 +772,26 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     status: str
     usuario: UsuarioResponse
+
+
+class RecuperacaoAcessoSolicitar(BaseModel):
+    usuario_login: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=3, max_length=255)
+
+    @field_validator("usuario_login", "email")
+    @classmethod
+    def limpar_campos(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class RecuperacaoAcessoConfirmar(BaseModel):
+    usuario_login: str = Field(min_length=2, max_length=120)
+    codigo: str = Field(pattern=r"^\d{6}$")
+
+    @field_validator("usuario_login")
+    @classmethod
+    def limpar_login(cls, value: str) -> str:
+        return value.strip().lower()
 
 
 class ConfirmacaoCritica(BaseModel):

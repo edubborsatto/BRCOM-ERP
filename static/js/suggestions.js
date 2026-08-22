@@ -1,4 +1,4 @@
-import {$,api,state,esc,payload,toast,showError} from './api.js?v=5.2.0';
+import {$,api,state,esc,payload,toast,showError} from './api.js?v=5.4.0';
 
 const ACTIVE_SUGGESTION_KEY='brcom-active-suggestion';
 let activeSuggestion=null;
@@ -160,7 +160,7 @@ export function initSuggestions(){
       activeSuggestion=await api(`/sugestoes/${activeSuggestion.id}`);
       renderMessages(activeSuggestion);
       fillReview(result);
-      if(!result.ai_available)setChatStatus(result.message,'error');
+      if(!result.ai_available)setChatStatus(`${result.message}${result.diagnostic?` Diagnóstico administrativo: ${result.diagnostic}`:''}`,'error');
     }catch(error){
       setChatStatus(error.message||'A mensagem não pôde ser enviada.','error');
       showError(error);

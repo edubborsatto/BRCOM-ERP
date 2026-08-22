@@ -18,8 +18,12 @@ def _snapshot(user: models.Usuario) -> dict:
     return {
         "nome": user.nome,
         "usuario_login": user.usuario_login,
+        "email": user.email,
+        "telefone": user.telefone,
         "tipo_usuario": user.tipo_usuario,
         "ativo": user.ativo,
+        "tentativas_login": user.tentativas_login,
+        "bloqueado_ate": user.bloqueado_ate,
         **{field: bool(getattr(user, field)) for field in PERMISSION_FIELDS},
     }
 
@@ -62,6 +66,8 @@ def criar_usuario(
         nome=usuario.nome.strip(),
         usuario_login=login,
         senha_hash=hash_password(usuario.senha),
+        email=usuario.email.lower() if usuario.email else None,
+        telefone=usuario.telefone,
         tipo_usuario=usuario.tipo_usuario,
         ativo=usuario.ativo,
         **permissions,
@@ -117,13 +123,50 @@ def atualizar_usuario(
         raise HTTPException(status_code=400, detail="Este login já existe")
     usuario.nome = dados.nome.strip()
     usuario.usuario_login = login
+    usuario.email = dados.email.lower() if dados.email else None
+    usuario.telefone = dados.telefone
     usuario.tipo_usuario = dados.tipo_usuario
     usuario.ativo = dados.ativo
     for field, value in _permission_values(dados, dados.tipo_usuario, atual).items():
         setattr(usuario, field, value)
     if dados.senha:
         usuario.senha_hash = hash_password(dados.senha)
+        usuario.tentativas_login = 0
+        usuario.bloqueado_ate = None
+        usuario.codigo_recuperacao_hash = None
+        usuario.codigo_recuperacao_expira_em = None
     audit_user_change(db, atual, "ATUALIZADO", usuario, before, _snapshot(usuario))
+    db.commit()
+    db.refresh(usuario)
+    return public_user(usuario)
+
+
+@router.post("/{usuario_id}/desbloquear", response_model=schemas.UsuarioResponse)
+def desbloquear_usuario(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    atual: models.Usuario = Depends(require_admin),
+):
+    usuario = db.get(models.Usuario, usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if atual.tipo_usuario != "DESENVOLVEDOR" and usuario.tipo_usuario == "DESENVOLVEDOR":
+        raise HTTPException(status_code=403, detail="Somente Desenvolvedor pode desbloquear outro Desenvolvedor")
+    before = _snapshot(usuario)
+    usuario.tentativas_login = 0
+    usuario.bloqueado_ate = None
+    usuario.codigo_recuperacao_hash = None
+    usuario.codigo_recuperacao_expira_em = None
+    usuario.codigo_recuperacao_tentativas = 0
+    audit_user_change(db, atual, "DESBLOQUEADO_ADMIN", usuario, before, _snapshot(usuario))
+    db.add(models.Notificacao(
+        usuario_id=usuario.id,
+        tipo="SEGURANCA",
+        titulo="Acesso desbloqueado",
+        mensagem=f"Seu acesso foi desbloqueado por {atual.nome}.",
+        entidade="usuarios",
+        entidade_id=usuario.id,
+    ))
     db.commit()
     db.refresh(usuario)
     return public_user(usuario)
