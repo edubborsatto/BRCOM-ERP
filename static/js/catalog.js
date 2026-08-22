@@ -1,4 +1,4 @@
-import {$,api,state,esc,money,qty,optionList,payload,toast,showError} from './api.js?v=5.1.0';
+import {$,api,state,esc,money,qty,optionList,payload,toast,showError} from './api.js?v=5.2.0';
 
 function productPayload(){return {codigo:$('prod_codigo').value,nome:$('prod_nome').value,tipo_item:$('prod_categoria').value,tipo:$('prod_tipo').value||null,familia:$('prod_familia').value||null,unidade_medida:$('prod_unidade').value,quantidade_atual:Number($('prod_qtd').value||0),estoque_minimo:Number($('prod_minimo').value||0),preco_custo:Number($('prod_custo').value||0),preco_venda:Number($('prod_venda').value||0),localizacao:$('prod_localizacao').value||null,especificacoes:$('prod_especificacoes').value||null}}
 function resetProduct(){$('productForm').reset();$('prod_id').value='';$('prod_qtd').disabled=false;$('productFormTitle').textContent='Novo produto';$('productQuantityLabel').textContent='Quantidade inicial';$('productQuantityHelp').classList.add('hidden');$('productSubmitButton').textContent='Salvar produto';$('productPanel').classList.add('hidden')}
