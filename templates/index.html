@@ -4,9 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>BRCom ERP</title>
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem('brcom-theme');
+      const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = savedTheme || preferredTheme;
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/static/css/app.css?v=5.1.0">
+  <link rel="stylesheet" href="/static/css/app.css?v=5.2.0">
 </head>
 <body class="bg-slate-100 text-slate-800">
   <div id="toast" class="toast hidden"></div>
@@ -47,9 +54,9 @@
       <div class="p-4 bg-slate-900"><div id="userNameDisplay" class="text-sm text-emerald-400"></div><div id="userRoleDisplay" class="text-xs text-slate-400 mb-2"></div><button id="logoutBtn" class="btn-danger w-full">Sair</button></div>
     </aside>
 
-    <header class="mobile-header"><button id="openMenu" aria-label="Abrir menu"><i class="fa-solid fa-bars"></i></button><strong id="mobileTitle">Painel</strong><span class="w-8"></span></header>
+    <header class="mobile-header"><button id="openMenu" aria-label="Abrir menu"><i class="fa-solid fa-bars"></i></button><strong id="mobileTitle">Painel</strong><div class="mobile-header-actions"><button class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo escuro" title="Alternar tema"><i class="fa-solid fa-moon" data-theme-icon></i></button><button class="mobile-chat-trigger" type="button" data-open-suggestion-chat data-suggestions aria-label="Abrir assistente de sugestões"><i class="fa-solid fa-message"></i></button></div></header>
     <main class="main-content">
-      <div class="quick-actions"><button class="btn-primary" data-tab="sugestoesTab" data-suggestions><i class="fa-solid fa-lightbulb"></i> Sugestão de melhoria</button><button class="btn-secondary" data-tab="notificacoesTab" aria-label="Abrir notificações"><i class="fa-solid fa-bell"></i></button></div>
+      <div class="quick-actions"><button id="openSuggestionChat" class="btn-primary" type="button" data-open-suggestion-chat data-suggestions><i class="fa-solid fa-wand-magic-sparkles"></i> Sugestão de melhoria</button><button class="btn-secondary icon-button" type="button" data-tab="notificacoesTab" aria-label="Abrir notificações"><i class="fa-solid fa-bell"></i></button><button class="theme-toggle" type="button" data-theme-toggle aria-label="Ativar modo escuro" title="Alternar tema"><i class="fa-solid fa-moon" data-theme-icon></i></button></div>
       <section id="dashboardTab" class="tab-content">
         <div class="page-title"><div><h1>Painel geral</h1><p>Visão rápida da operação</p></div></div>
         <div id="summaryCards" class="stats-grid"></div>
@@ -141,7 +148,7 @@
 
       <section id="historicoTab" class="tab-content hidden"><div class="page-title"><div><h1>Auditoria geral</h1><p>Ações relevantes de todos os módulos</p></div></div><div class="card p-4 mb-4"><form id="historyFilters" class="filter-grid"><label>Data inicial<input id="history_start" type="date"></label><label>Data final<input id="history_end" type="date"></label><label>Usuário<input id="history_user" placeholder="Nome do responsável"></label><label>Módulo<input id="history_module" placeholder="Ex.: PEDIDOS"></label><label>Ação<input id="history_action" placeholder="Ex.: EDITAR"></label><label>Produto/registro<input id="history_record" placeholder="Entidade ou ID"></label><div class="actions"><button class="btn-primary">Filtrar</button><button id="clearHistoryFilters" type="button" class="btn-secondary">Limpar</button></div></form></div><div class="card p-4"><div class="table-wrap"><table><thead><tr><th>Data e hora</th><th>Módulo</th><th>Ação</th><th>Registro</th><th>Dados anteriores</th><th>Dados novos</th><th>Responsável</th></tr></thead><tbody id="historyTable"></tbody></table></div><p class="help-text mt-3">Os registros são permanentes e não podem ser alterados ou excluídos.</p></div></section>
 
-      <section id="sugestoesTab" class="tab-content hidden"><div class="page-title"><div><h1>Sugestões de melhoria</h1><p>Converse com a assistente para estruturar sua ideia antes do envio.</p></div><button id="newSuggestion" class="btn-primary">+ Nova sugestão</button></div><div id="suggestionWorkspace" class="suggestion-layout hidden"><div class="card p-5"><h2>Conversa</h2><div id="suggestionMessages" class="suggestion-messages"></div><form id="suggestionMessageForm" class="message-composer"><textarea id="suggestionMessage" required placeholder="Descreva sua ideia ou responda à pergunta..."></textarea><button class="btn-primary">Enviar</button></form></div><form id="suggestionConfirmForm" class="card p-5 form-grid"><h2 class="col-span-full">Revisar e confirmar</h2><label class="col-span-2">Título<input id="suggestionTitle" required></label><label>Módulo<input id="suggestionModule" required></label><label class="col-span-full">Descrição<textarea id="suggestionDescription" required></textarea></label><label class="col-span-full">Resumo estruturado<textarea id="suggestionSummary" required></textarea></label><div class="form-actions"><button class="btn-primary">Confirmar e enviar</button></div></form></div><form id="suggestionFilters" class="filters card p-4 mt-5"><select id="suggestionFilterStatus"><option value="">Todos os status</option><option>ENVIADA</option><option>EM_ANALISE</option><option>APROVADA</option><option>EM_ATENDIMENTO</option><option>IMPLEMENTADA</option><option>FINALIZADA</option><option>RECUSADA</option></select><input id="suggestionFilterModule" placeholder="Módulo"><select id="suggestionFilterPriority"><option value="">Todas as prioridades</option><option>BAIXA</option><option>NORMAL</option><option>ALTA</option><option>URGENTE</option></select><button class="btn-secondary">Filtrar</button></form><div class="card p-4 mt-3"><h2>Histórico de sugestões</h2><div id="suggestionList" class="card-list mt-3"></div></div></section>
+      <section id="sugestoesTab" class="tab-content hidden"><div class="page-title"><div><h1>Sugestões de melhoria</h1><p>Acompanhe ideias enviadas, respostas e andamento das melhorias.</p></div><button id="newSuggestion" class="btn-primary" type="button" data-open-suggestion-chat data-suggestions><i class="fa-solid fa-message"></i> Abrir assistente</button></div><div class="suggestion-history-intro card p-4"><i class="fa-solid fa-wand-magic-sparkles"></i><div><b>Converse com a assistente de IA</b><p class="help-text">O chat continua aberto enquanto você navega pelo sistema e pode ser minimizado no canto inferior direito.</p></div></div><form id="suggestionFilters" class="filters card p-4 mt-5"><select id="suggestionFilterStatus"><option value="">Todos os status</option><option>ENVIADA</option><option>EM_ANALISE</option><option>APROVADA</option><option>EM_ATENDIMENTO</option><option>IMPLEMENTADA</option><option>FINALIZADA</option><option>RECUSADA</option></select><input id="suggestionFilterModule" placeholder="Módulo"><select id="suggestionFilterPriority"><option value="">Todas as prioridades</option><option>BAIXA</option><option>NORMAL</option><option>ALTA</option><option>URGENTE</option></select><button class="btn-secondary">Filtrar</button></form><div class="card p-4 mt-3"><h2>Histórico de sugestões</h2><div id="suggestionList" class="card-list mt-3"></div></div></section>
 
       <section id="notificacoesTab" class="tab-content hidden"><div class="page-title"><div><h1>Notificações</h1><p>Atualizações importantes do sistema e das sugestões.</p></div><button id="readAllNotifications" class="btn-secondary">Marcar todas como lidas</button></div><div id="notificationList" class="card-list"></div></section>
 
@@ -169,7 +176,37 @@
       </section>
     </main>
   </div>
+  <aside id="suggestionChat" class="suggestion-chat hidden" role="dialog" aria-labelledby="suggestionChatTitle">
+    <header id="suggestionChatHeader" class="suggestion-chat-header">
+      <button id="suggestionChatExpand" class="suggestion-chat-identity" type="button" aria-label="Expandir assistente de sugestões">
+        <span class="assistant-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <span><strong id="suggestionChatTitle">Assistente de sugestões</strong><small><i class="assistant-status-dot"></i> IA para organizar sua ideia</small></span>
+      </button>
+      <div class="suggestion-chat-controls">
+        <button id="suggestionChatNew" type="button" aria-label="Começar nova sugestão" title="Nova sugestão"><i class="fa-solid fa-plus"></i></button>
+        <button id="suggestionChatMinimize" type="button" aria-label="Minimizar assistente" title="Minimizar"><i class="fa-solid fa-minus"></i></button>
+      </div>
+    </header>
+    <div id="suggestionChatBody" class="suggestion-chat-body">
+      <div id="suggestionMessages" class="suggestion-messages" aria-live="polite"></div>
+      <div id="suggestionTyping" class="suggestion-typing hidden" aria-live="polite"><span></span><span></span><span></span><small>A assistente está analisando...</small></div>
+      <p id="suggestionChatStatus" class="suggestion-chat-status hidden" role="status"></p>
+      <form id="suggestionMessageForm" class="message-composer">
+        <label class="sr-only" for="suggestionMessage">Mensagem para a assistente</label>
+        <textarea id="suggestionMessage" required rows="2" placeholder="Conte sua ideia ou responda à pergunta..."></textarea>
+        <button class="btn-primary suggestion-send" type="submit" aria-label="Enviar mensagem"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+      <form id="suggestionConfirmForm" class="suggestion-review form-grid hidden">
+        <div class="col-span-full suggestion-review-title"><i class="fa-solid fa-circle-check"></i><div><b>Ideia compreendida</b><small>Revise o resumo antes de enviar.</small></div></div>
+        <label class="col-span-2">Título<input id="suggestionTitle" required></label>
+        <label>Módulo<input id="suggestionModule" required></label>
+        <label class="col-span-full">Descrição<textarea id="suggestionDescription" required></textarea></label>
+        <label class="col-span-full">Resumo estruturado<textarea id="suggestionSummary" required></textarea></label>
+        <div class="form-actions"><button class="btn-primary" type="submit"><i class="fa-solid fa-paper-plane"></i> Confirmar e enviar</button></div>
+      </form>
+    </div>
+  </aside>
   <dialog id="criticalActionDialog" class="card critical-dialog"><form id="criticalActionForm" class="form-grid"><div class="col-span-full"><h2 id="criticalActionTitle">Confirmar exclusão definitiva</h2><p id="criticalActionWarning" class="critical-warning"></p></div><label class="col-span-full">Motivo<textarea id="criticalActionReason" required minlength="3"></textarea></label><label class="col-span-full">Digite novamente sua senha<input id="criticalActionPassword" type="password" required autocomplete="current-password"></label><div class="form-actions"><button id="criticalActionCancel" type="button" class="btn-secondary">Cancelar</button><button class="btn-danger">Excluir definitivamente</button></div></form></dialog>
-  <script type="module" src="/static/js/app.js?v=5.1.0"></script>
+  <script type="module" src="/static/js/app.js?v=5.2.0"></script>
 </body>
 </html>

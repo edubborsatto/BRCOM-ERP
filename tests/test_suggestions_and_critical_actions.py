@@ -1,5 +1,7 @@
 import os
 
+import httpx
+
 
 ADMIN_PASSWORD = "SenhaSeguraTeste123"
 
@@ -54,6 +56,44 @@ def test_sugestao_funciona_sem_ia_e_notifica_admin_e_autor(admin_client):
     assert any("Em análise" in item["mensagem"] for item in notices)
 
 
+def test_chat_de_sugestao_conversa_com_openai_e_preserva_historico_local(
+    admin_client, monkeypatch,
+):
+    captured = {}
+
+    def fake_openai_post(url, headers, json, timeout):
+        captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        request = httpx.Request("POST", url)
+        return httpx.Response(200, request=request, json={
+            "output": [{
+                "content": [{
+                    "type": "output_text",
+                    "text": "{\"assistant_message\":\"Qual etapa deve melhorar?\","
+                    "\"ready\":false,\"title\":null,\"module\":null,\"summary\":null}",
+                }],
+            }],
+        })
+
+    monkeypatch.setenv("OPENAI_API_KEY", "chave-somente-de-teste")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4.1-mini")
+    monkeypatch.setattr("app.ai_suggestions.httpx.post", fake_openai_post)
+    draft = admin_client.post("/sugestoes/").json()
+    response = admin_client.post(
+        f"/sugestoes/{draft['id']}/mensagens",
+        json={"conteudo": "Quero tornar a separação mais rápida."},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ai_available"] is True
+    assert response.json()["assistant_message"] == "Qual etapa deve melhorar?"
+    assert captured["url"] == "https://api.openai.com/v1/responses"
+    assert captured["json"]["store"] is False
+    assert "chave-somente-de-teste" not in str(captured["json"])
+    saved = admin_client.get(f"/sugestoes/{draft['id']}").json()
+    assert [message["autor_tipo"] for message in saved["mensagens"]] == ["USUARIO", "IA"]
+    assert saved["mensagens"][1]["conteudo"] == "Qual etapa deve melhorar?"
+
+
 def test_exclusao_definitiva_de_venda_revalida_senha(admin_client):
     client_record = admin_client.post("/clientes/", json={"nome": "Cliente Exclusão Venda"}).json()
     sale = admin_client.post("/vendas/", json={
@@ -82,8 +122,29 @@ def test_interface_expoe_agenda_sugestoes_notificacoes_e_confirmacao_critica(adm
     page = admin_client.get("/").text
     administration = admin_client.get("/static/js/administration.js").text
     suggestions = admin_client.get("/static/js/suggestions.js").text
+    app = admin_client.get("/static/js/app.js").text
+    styles = admin_client.get("/static/css/app.css").text
     assert 'id="agendaMonth"' in page and 'id="agendaYear"' in page
     assert 'id="sugestoesTab"' in page and 'id="notificacoesTab"' in page
+    assert 'id="suggestionChat"' in page and 'id="suggestionChatMinimize"' in page
+    assert 'data-open-suggestion-chat' in page and 'data-theme-toggle' in page
     assert 'id="criticalActionPassword"' in page
     assert "data-open-agenda-record" in administration
     assert "/sugestoes/" in suggestions and "/notificacoes/" in suggestions
+    assert "openSuggestionChat" in suggestions and "minimizeChat" in suggestions
+    assert "brcom-theme" in app and "applyTheme" in app
+    assert ".suggestion-chat.minimized" in styles
+    assert 'html[data-theme="dark"]' in styles
+
+
+def test_modulos_javascript_compartilham_a_mesma_versao_da_api(admin_client):
+    module_names = [
+        "app.js", "catalog.js", "operations.js", "administration.js",
+        "imports.js", "sales-sheets.js", "suggestions.js",
+    ]
+    for module_name in module_names:
+        source = admin_client.get(f"/static/js/{module_name}").text
+        if "./api.js?v=" in source:
+            assert "./api.js?v=5.2.0" in source
+            assert "./api.js?v=5.1.0" not in source
+            assert "./api.js?v=6.0.0" not in source

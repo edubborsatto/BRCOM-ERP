@@ -28,6 +28,8 @@ def continue_interview(messages: list[dict[str, str]]) -> dict:
         "instructions": SYSTEM_PROMPT,
         "input": messages,
         "temperature": 0.2,
+        # O histórico oficial fica no banco do BRCom, não duplicado na OpenAI.
+        "store": False,
     }
     try:
         response = httpx.post(

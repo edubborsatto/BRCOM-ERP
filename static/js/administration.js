@@ -1,5 +1,5 @@
-import {$,api,state,esc,qty,date,datetimeLocal,payload,toast,showError,criticalConfirmation} from './api.js?v=6.0.0';
-import {loadProducts} from './catalog.js?v=5.1.0';
+import {$,api,state,esc,qty,date,datetimeLocal,payload,toast,showError,criticalConfirmation} from './api.js?v=5.2.0';
+import {loadProducts} from './catalog.js?v=5.2.0';
 
 const permissionMap = [
   ['perm_admin','pode_gerenciar_usuarios'], ['perm_custos','pode_alterar_custos'],

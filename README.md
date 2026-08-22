@@ -240,6 +240,14 @@ conversa assistida, histórico de status, notificações e as novas permissões.
 O backend usa `OPENAI_API_KEY` somente no servidor e continua operacional sem
 a chave; `OPENAI_MODEL` é opcional e usa `gpt-4.1-mini` como padrão.
 
+### Interface 5.2.0
+
+O atalho **Sugestão de melhoria** abre a assistente em um chat flutuante no
+canto inferior direito. A conversa continua disponível durante a navegação,
+pode ser minimizada e reutiliza as mensagens salvas no banco, sem criar uma
+segunda fonte de dados. O botão de sol/lua alterna entre os modos claro e
+escuro e guarda a preferência no navegador.
+
 Cancelamento e exclusão definitiva são ações diferentes. Vendas, pedidos,
 clientes com histórico e ordens de serviço exigem perfil Dono/Desenvolvedor,
 motivo e nova confirmação da senha. Estornos de estoque e desvinculações são
